@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Companion Memory</title>
+<style>
+:root{--bg:#f5efe2;--panel:#fffaf1;--ink:#26211a;--muted:#7c6d5e;--line:#dccfbf;--accent:#bf6c3b;--accent2:#2f6c73;--danger:#b94d4d}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 "Segoe UI",sans-serif;background:linear-gradient(180deg,#efe4d0,#f7f2e9);color:var(--ink)}
+header{padding:18px 24px;background:rgba(255,250,241,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+h1,h2,h3{margin:0}button,input,select,textarea{font:inherit}
+button{border:0;border-radius:10px;padding:8px 12px;cursor:pointer;background:var(--accent);color:#fff}
+button.secondary{background:#e7dccd;color:var(--ink)}button.danger{background:var(--danger)}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+main{max-width:1200px;margin:0 auto;padding:20px}
+.login{max-width:360px;margin:12vh auto;background:var(--panel);padding:24px;border:1px solid var(--line);border-radius:18px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.tabs button.active{background:var(--accent2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 10px 24px rgba(70,50,30,.06)}
+.muted{color:var(--muted)}.pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#efe6d9;color:var(--muted);font-size:12px}
+table{width:100%;border-collapse:collapse}.th,th{font-size:12px;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line)}td{padding:10px 8px;border-bottom:1px solid #eee4d7;vertical-align:top}
+.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.narrow{max-width:130px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.toolbar>*{flex:0 0 auto}
+pre{white-space:pre-wrap;background:#f6efe4;padding:12px;border-radius:12px;border:1px solid var(--line)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <h2>用户分类记忆</h2>
+  <p class="muted">登录 WebUI</p>
+  <input id="password" type="password" placeholder="访问密码">
+  <div style="height:12px"></div>
+  <button onclick="login()">登录</button>
+  <p id="loginError" class="muted"></p>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div>
+      <h1>用户分类记忆</h1>
+      <div class="muted" id="uptime"></div>
+    </div>
+    <button class="secondary" onclick="logout()">退出</button>
+  </header>
+  <main>
+    <div class="tabs">
+      <button id="tab-dashboard" onclick="openTab('dashboard')" class="active">概览</button>
+      <button id="tab-memories" onclick="openTab('memories')">记忆库</button>
+      <button id="tab-injection" onclick="openTab('injection')">注入预览</button>
+      <button id="tab-config" onclick="openTab('config')">配置</button>
+    </div>
+    <section id="view"></section>
+  </main>
+</div>
+
+<script>
+const API='';
+let token=localStorage.getItem('ucm_token')||'';
+let currentTab='dashboard';
+function headers(){return {'Authorization':'Bearer '+token,'Content-Type':'application/json'};}
+async function request(path,opts={}){const r=await fetch(API+path,{...opts,headers:{...headers(),...(opts.headers||{})}});if(r.status===401){logout();throw new Error('unauth')}return r.json()}
+function toast(msg){window.alert(msg)}
+function boot(){if(token){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');refresh()}}
+async function login(){const pw=document.getElementById('password').value;const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});if(!r.ok){document.getElementById('loginError').textContent='密码不对';return;}const d=await r.json();token=d.token;localStorage.setItem('ucm_token',token);boot()}
+function logout(){localStorage.removeItem('ucm_token');token='';location.reload()}
+function openTab(name){currentTab=name;for(const btn of document.querySelectorAll('.tabs button'))btn.classList.remove('active');document.getElementById('tab-'+name).classList.add('active');refresh()}
+async function refresh(){if(currentTab==='dashboard')renderDashboard();if(currentTab==='memories')renderMemories();if(currentTab==='injection')renderInjection();if(currentTab==='config')renderConfig()}
+function esc(s){return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+function ts(v){if(!v)return'-';return new Date(v*1000).toLocaleString('zh-CN')}
+function daysText(v,label){
+  if(v===null||v===undefined)return `${label}: -`;
+  return `${label}: ${v>=0?`还剩 ${v} 天`:`已过 ${Math.abs(v)} 天`}`;
+}
+function forgettingText(item){
+  const f=item.forgetting||{};
+  if(f.protected)return '遗忘: 置顶保护';
+  const parts=[];
+  if(f.stale_after_days>0)parts.push(daysText(f.stale_in_days,'stale'));
+  if(f.archive_after_days>0)parts.push(daysText(f.archive_in_days,'archive'));
+  if((item.ttl_days||0)>0 || (f.fallback_ttl_days||0)>0)parts.push(daysText(f.ttl_in_days,'TTL'));
+  if(f.expires_at)parts.push(daysText(f.expires_in_days,'expires'));
+  return parts.length?('遗忘: '+parts.join(' | ')):'遗忘: 不自动处理';
+}
+
+async function renderDashboard(){
+  const d=await request('/api/dashboard');
+  document.getElementById('uptime').textContent='运行 '+d.uptime_minutes+' 分钟';
+  const stats=d.stats||{};
+  const cats=stats.by_category||{};
+  document.getElementById('view').innerHTML=`
+    <div class="grid">
+      <div class="card"><h3>总条目</h3><div style="font-size:28px">${stats.total||0}</div></div>
+      <div class="card"><h3>Active</h3><div style="font-size:28px">${stats.active||0}</div></div>
+      <div class="card"><h3>Stale</h3><div style="font-size:28px">${stats.stale||0}</div></div>
+      <div class="card"><h3>Archived</h3><div style="font-size:28px">${stats.archived||0}</div></div>
+    </div>
+    <div class="card">
+      <h3>分类分布</h3>
+      <div class="toolbar">${Object.entries(cats).map(([k,v])=>`<span class="pill">${k}: ${v}</span>`).join('')||'<span class="muted">暂无</span>'}</div>
+    </div>
+    <div class="card">
+      <div class="row"><h3>最近事件</h3><div></div><button class="secondary narrow" onclick="runForgetting()">执行遗忘</button></div>
+      <table><thead><tr><th>ID</th><th>动作</th><th>细节</th><th>时间</th></tr></thead>
+      <tbody>${(d.events||[]).map(e=>`<tr><td>${e.id}</td><td>${esc(e.action)}</td><td>${esc(e.detail)}</td><td>${ts(e.created_at)}</td></tr>`).join('')}</tbody></table>
+    </div>`;
+}
+
+async function runForgetting(){const d=await request('/api/forgetting/run',{method:'POST'});alert('遗忘完成: '+JSON.stringify(d))}
+
+async function renderMemories(){
+  const category=document.getElementById('memoryCategory')?.value||'';
+  const status=document.getElementById('memoryStatus')?.value||'active';
+  const d=await request('/api/memories?category='+encodeURIComponent(category)+'&status_filter='+encodeURIComponent(status));
+  document.getElementById('view').innerHTML=`
+    <div class="card">
+      <div class="toolbar">
+        <select id="memoryCategory" onchange="renderMemories()">
+          <option value="">全部分类</option>
+          <option value="profile" ${category==='profile'?'selected':''}>profile</option>
+          <option value="agreement" ${category==='agreement'?'selected':''}>agreement</option>
+          <option value="event" ${category==='event'?'selected':''}>event</option>
+          <option value="fact" ${category==='fact'?'selected':''}>fact</option>
+          <option value="knowledge_ref" ${category==='knowledge_ref'?'selected':''}>knowledge_ref</option>
+        </select>
+        <select id="memoryStatus" onchange="renderMemories()">
+          <option value="">全部状态</option>
+          <option value="active" ${status==='active'?'selected':''}>active</option>
+          <option value="stale" ${status==='stale'?'selected':''}>stale</option>
+          <option value="archived" ${status==='archived'?'selected':''}>archived</option>
+        </select>
+        <button onclick="showAddForm()">新增记忆</button>
+      </div>
+      <div id="memoryForm" class="hidden card" style="margin-top:10px"></div>
+      <table>
+        <thead><tr><th>ID</th><th>分类</th><th>内容</th><th>属性</th><th>时间</th><th>操作</th></tr></thead>
+        <tbody>${(d.items||[]).map(item=>`
+          <tr>
+            <td>${item.id}</td>
+            <td><span class="pill">${item.category}</span></td>
+            <td>${esc(item.content)}${item.note?`<div class="muted">${esc(item.note)}</div>`:''}</td>
+            <td class="muted">priority=${item.priority} | pinned=${item.pinned?'Y':'N'} | ttl=${item.ttl_days||0} | status=${item.status}<br>${esc(forgettingText(item))}</td>
+            <td class="muted">更新: ${ts(item.updated_at)}<br>使用: ${ts(item.last_used_at)}<br>活动基准: ${ts(item.forgetting?.activity_at)}</td>
+            <td><button class="secondary" onclick='editMemory(${JSON.stringify(item)})'>编辑</button> <button class="danger" onclick="archiveMemory(${item.id})">归档</button></td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function showAddForm(item=null){
+  const host=document.getElementById('memoryForm'); host.classList.remove('hidden');
+  host.innerHTML=`
+    <h3>${item?'编辑':'新增'}记忆</h3>
+    <div class="row">
+      <div><label>分类</label><select id="f_category"><option>profile</option><option>agreement</option><option>event</option><option>fact</option><option>knowledge_ref</option></select></div>
+      <div><label>priority</label><input id="f_priority" type="number" min="0" max="1" step="0.05" value="${item?item.priority:0.7}"></div>
+      <div><label>ttl_days</label><input id="f_ttl" type="number" min="0" step="1" value="${item?item.ttl_days:0}"></div>
+    </div>
+    <div class="row">
+      <div><label>pinned</label><select id="f_pinned"><option value="false">false</option><option value="true">true</option></select></div>
+      <div><label>confidence</label><input id="f_confidence" type="number" min="0" max="1" step="0.05" value="${item?item.confidence:0.9}"></div>
+      <div><label>status</label><select id="f_status"><option>active</option><option>stale</option><option>archived</option></select></div>
+    </div>
+    <div><label>内容</label><textarea id="f_content" rows="3">${item?esc(item.content):''}</textarea></div>
+    <div><label>备注</label><input id="f_note" value="${item?esc(item.note||''):''}"></div>
+    <div style="height:10px"></div>
+    <button onclick="${item?`saveEdit(${item.id})`:'saveAdd()'}">保存</button>
+    <button class="secondary" onclick="document.getElementById('memoryForm').classList.add('hidden')">取消</button>`;
+  document.getElementById('f_category').value=item?item.category:'profile';
+  document.getElementById('f_pinned').value=item&&item.pinned?'true':'false';
+  document.getElementById('f_status').value=item?item.status:'active';
+}
+function editMemory(item){showAddForm(item)}
+async function saveAdd(){
+  const payload=readForm();
+  await request('/api/memories',{method:'POST',body:JSON.stringify(payload)});
+  renderMemories();
+}
+async function saveEdit(id){
+  const payload=readForm();
+  await request('/api/memories/'+id,{method:'PUT',body:JSON.stringify(payload)});
+  renderMemories();
+}
+function readForm(){return{
+  category:document.getElementById('f_category').value,
+  priority:parseFloat(document.getElementById('f_priority').value||'0.7'),
+  ttl_days:parseInt(document.getElementById('f_ttl').value||'0',10),
+  pinned:document.getElementById('f_pinned').value==='true',
+  confidence:parseFloat(document.getElementById('f_confidence').value||'0.9'),
+  status:document.getElementById('f_status').value,
+  content:document.getElementById('f_content').value,
+  note:document.getElementById('f_note').value
+}}
+async function archiveMemory(id){
+  const res=await request('/api/memories/'+id,{method:'DELETE'});
+  if(res.ok){
+    toast('已归档 #'+id);
+    renderMemories();
+  }else{
+    toast('归档失败 #'+id);
+  }
+}
+
+async function renderInjection(){
+  document.getElementById('view').innerHTML=`
+    <div class="card">
+      <h3>注入预览</h3>
+      <p class="muted">输入一条用户消息，看看这一回合会注入哪些分类记忆。</p>
+      <div class="row"><input id="previewQuery" placeholder="例如：我明天想出去拍照"><button class="narrow" onclick="doPreview()">预览</button></div>
+      <div style="height:12px"></div>
+      <pre id="previewOutput">等待预览...</pre>
+    </div>`;
+}
+async function doPreview(){
+  const query=document.getElementById('previewQuery').value;
+  const d=await request('/api/injection-preview',{method:'POST',body:JSON.stringify({query})});
+  document.getElementById('previewOutput').textContent=d.text||'无注入';
+}
+
+async function renderConfig(){
+  const [cfg,schema]=await Promise.all([request('/api/config'),request('/api/config/schema')]);
+  const sections=['memory_settings','injection_settings','forgetting_settings','tool_settings','prompt_settings','debug_settings','webui_settings'];
+  document.getElementById('view').innerHTML=`
+    <div class="card"><div class="row"><h3>配置</h3><div></div><button onclick="saveConfig()">保存配置</button></div></div>
+    ${sections.map(sec=>renderSection(sec,cfg[sec]||{},(schema[sec]||{}).items||{})).join('')}`;
+}
+function renderSection(name,values,items){
+  return `<div class="card"><h3>${name}</h3>${Object.entries(items).map(([key,meta])=>{
+    const id='cfg_'+name+'_'+key; const val=values[key]??meta.default??'';
+    if(meta.type==='bool') return `<div><label>${key}</label><select data-sec="${name}" data-key="${key}" data-type="bool" id="${id}"><option value="true" ${val===true?'selected':''}>true</option><option value="false" ${val===false?'selected':''}>false</option></select></div>`;
+    if(meta.options) return `<div><label>${key}</label><select data-sec="${name}" data-key="${key}" data-type="string" id="${id}">${meta.options.map(o=>`<option value="${o}" ${String(val)===String(o)?'selected':''}>${o}</option>`).join('')}</select></div>`;
+    if(meta.type==='int'||meta.type==='float') return `<div><label>${key}</label><input data-sec="${name}" data-key="${key}" data-type="${meta.type}" id="${id}" type="number" step="${meta.type==='float'?'0.01':'1'}" value="${val}"></div>`;
+    const long=String(val).length>80||key.includes('prompt');
+    return `<div><label>${key}</label>${long?`<textarea data-sec="${name}" data-key="${key}" data-type="string" id="${id}" rows="4">${esc(String(val))}</textarea>`:`<input data-sec="${name}" data-key="${key}" data-type="string" id="${id}" value="${esc(String(val))}">`}</div>`;
+  }).join('')}</div>`;
+}
+async function saveConfig(){
+  const payload={};
+  document.querySelectorAll('[data-sec]').forEach(el=>{
+    const sec=el.dataset.sec,key=el.dataset.key,type=el.dataset.type;
+    payload[sec]=payload[sec]||{};
+    let v=el.value;
+    if(type==='bool')v=v==='true';
+    if(type==='int')v=parseInt(v||'0',10);
+    if(type==='float')v=parseFloat(v||'0');
+    payload[sec][key]=v;
+  });
+  await request('/api/config',{method:'PUT',body:JSON.stringify(payload)});
+  alert('配置已保存');
+}
+
+boot();
+</script>
+</body>
+</html>

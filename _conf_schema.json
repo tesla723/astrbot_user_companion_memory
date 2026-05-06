@@ -1,0 +1,85 @@
+{
+  "memory_settings": {
+    "description": "轮数总结与缓存",
+    "type": "object",
+    "items": {
+      "summary_model": {"description": "轮数总结模型", "type": "string", "_special": "select_provider", "default": ""},
+      "summary_every_turns": {"description": "每隔多少轮做一次记忆抽取", "type": "int", "default": 6},
+      "max_buffer_turns": {"description": "每个会话保留多少轮用于总结", "type": "int", "default": 30},
+      "embedding_enabled": {"description": "启用 embedding 检索", "type": "bool", "default": true},
+      "embedding_model": {"description": "Embedding Provider ID（非 chat 模型）", "hint": "如 openai_embedding、zhipu_embedding。留空自动使用默认", "type": "string", "default": ""},
+      "embedding_threshold": {"description": "embedding 检索最低相似度阈值", "type": "float", "default": 0.35},
+      "pinned_limit_per_category": {"description": "每个分类的置顶上限，满额后按重要度轮换", "type": "int", "default": 3}
+    }
+  },
+  "injection_settings": {
+    "description": "分类注入",
+    "type": "object",
+    "items": {
+      "reference_header": {"description": "注入头说明", "type": "string", "default": "[用户相关记忆参考]"},
+      "max_injection_chars": {"description": "总注入字符上限", "type": "int", "default": 1200},
+      "agreement_limit": {"description": "每回合最多注入多少条 agreement", "type": "int", "default": 3},
+      "profile_limit": {"description": "每回合最多注入多少条 profile", "type": "int", "default": 4},
+      "event_limit": {"description": "每回合最多注入多少条 event", "type": "int", "default": 2},
+      "fact_limit": {"description": "每回合最多注入多少条 fact", "type": "int", "default": 3},
+      "knowledge_ref_limit": {"description": "每回合最多注入多少条 knowledge_ref", "type": "int", "default": 2}
+    }
+  },
+  "forgetting_settings": {
+    "description": "遗忘机制",
+    "type": "object",
+    "items": {
+      "run_interval_hours": {"description": "每隔多少小时执行一次时间遗忘扫描", "type": "float", "default": 12},
+      "protect_pinned": {"description": "置顶记忆是否免于自动遗忘", "type": "bool", "default": true},
+      "profile_stale_after_days": {"description": "profile 多少天后转 stale，0=不自动 stale", "type": "int", "default": 0},
+      "profile_archive_after_days": {"description": "profile 多少天后归档，0=不自动归档", "type": "int", "default": 0},
+      "profile_ttl_days": {"description": "profile 默认 TTL 天数，0=不启用", "type": "int", "default": 0},
+      "agreement_stale_after_days": {"description": "agreement 多少天后转 stale，0=不自动 stale", "type": "int", "default": 0},
+      "agreement_archive_after_days": {"description": "agreement 多少天后归档，0=不自动归档", "type": "int", "default": 0},
+      "agreement_ttl_days": {"description": "agreement 默认 TTL 天数，0=不启用", "type": "int", "default": 0},
+      "event_stale_after_days": {"description": "event 多少天后转 stale，0=不自动 stale", "type": "int", "default": 3},
+      "event_archive_after_days": {"description": "event 多少天后归档，0=不自动归档", "type": "int", "default": 7},
+      "event_ttl_days": {"description": "event 默认 TTL 天数，0=不启用", "type": "int", "default": 7},
+      "fact_stale_after_days": {"description": "fact 多少天后转 stale，0=不自动 stale", "type": "int", "default": 14},
+      "fact_archive_after_days": {"description": "fact 多少天后归档，0=不自动归档", "type": "int", "default": 45},
+      "fact_ttl_days": {"description": "fact 默认 TTL 天数，0=不启用", "type": "int", "default": 0},
+      "knowledge_ref_stale_after_days": {"description": "knowledge_ref 多少天后转 stale，0=不自动 stale", "type": "int", "default": 14},
+      "knowledge_ref_archive_after_days": {"description": "knowledge_ref 多少天后归档，0=不自动归档", "type": "int", "default": 45},
+      "knowledge_ref_ttl_days": {"description": "knowledge_ref 默认 TTL 天数，0=不启用", "type": "int", "default": 0}
+    }
+  },
+  "tool_settings": {
+    "description": "Agent 主动写入工具",
+    "type": "object",
+    "items": {
+      "allow_agent_add": {"description": "允许 agent 主动调用写入工具", "type": "bool", "default": true},
+      "default_tool_priority": {"description": "agent 主动写入默认优先级", "type": "float", "default": 0.75}
+    }
+  },
+  "prompt_settings": {
+    "description": "Prompt 自定义",
+    "type": "object",
+    "items": {
+      "round_summary_prompt": {"description": "轮数总结提取 Prompt，可用 {existing} {conversation}", "type": "string", "default": ""}
+    }
+  },
+  "debug_settings": {
+    "description": "调试输出",
+    "type": "object",
+    "items": {
+      "debug_level": {"description": "日志等级", "type": "string", "default": "basic", "options": ["off", "basic", "verbose", "trace"]},
+      "log_injection_detail": {"description": "显示详细注入内容（每条记忆详情）", "type": "bool", "default": false}
+    }
+  },
+  "webui_settings": {
+    "description": "WebUI",
+    "type": "object",
+    "items": {
+      "enabled": {"description": "启用 WebUI", "type": "bool", "default": true},
+      "host": {"description": "监听地址", "type": "string", "default": "127.0.0.1"},
+      "port": {"description": "监听端口", "type": "int", "default": 6187},
+      "access_password": {"description": "访问密码（留空自动生成）", "type": "string", "default": ""},
+      "session_timeout": {"description": "登录会话超时秒数", "type": "int", "default": 3600}
+    }
+  }
+}

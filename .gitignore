@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+companion_memory.db
+runtime_config.json
+*.log
+
+.DS_Store
+Thumbs.db
