@@ -25,10 +25,10 @@ from .webui.server import WebUIServer
 
 
 @register(
-    "user_companion_memory",
+    "astrbot_plugin_user_companion_memory",
     "tesla",
     "用户分类记忆插件——按类别记住用户信息、约定、事件、知识索引并每回合注入",
-    "1.0.5",
+    "1.0.6",
     "https://github.com/tesla/astrbot_user_companion_memory",
 )
 class UserCompanionMemoryPlugin(Star):

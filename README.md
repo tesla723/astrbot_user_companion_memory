@@ -127,7 +127,7 @@
 把整个目录放到：
 
 ```text
-AstrBot/data/plugins/user_companion_memory
+AstrBot/data/plugins/astrbot_plugin_user_companion_memory
 ```
 
 然后重载或重启 AstrBot。
