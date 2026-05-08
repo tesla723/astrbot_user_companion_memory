@@ -342,5 +342,3 @@ debug_settings.log_injection_detail = true
 - `logo.png`
 - `slang_2026_seed.txt`
 - `LICENSE`
-
-如果你要给别人直接安装，建议再发布一个 Release，并附上打包好的 ZIP。
