@@ -1,9 +1,9 @@
 name: astrbot_plugin_user_companion_memory
 display_name: User Companion Memory
 author: tesla
-version: 1.0.6
+version: 1.1.3
 description: 用户分类记忆插件——按类别记住用户信息、约定、事件、知识索引并每回合注入
-repo: https://github.com/tesla/astrbot_user_companion_memory
+repo: https://github.com/tesla723/astrbot_user_companion_memory
 astrbot_version: ">=4.16,<5"
 support_platforms:
   - qq_official

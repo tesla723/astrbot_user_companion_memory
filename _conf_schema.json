@@ -3,83 +3,477 @@
     "description": "轮数总结与缓存",
     "type": "object",
     "items": {
-      "summary_model": {"description": "轮数总结模型", "type": "string", "_special": "select_provider", "default": ""},
-      "summary_every_turns": {"description": "每隔多少轮做一次记忆抽取", "type": "int", "default": 6},
-      "max_buffer_turns": {"description": "每个会话保留多少轮用于总结", "type": "int", "default": 30},
-      "embedding_enabled": {"description": "启用 embedding 检索", "type": "bool", "default": true},
-      "embedding_model": {"description": "Embedding Provider ID（非 chat 模型）", "hint": "如 openai_embedding、zhipu_embedding。留空自动使用默认", "type": "string", "default": ""},
-      "embedding_threshold": {"description": "embedding 检索最低相似度阈值", "type": "float", "default": 0.35},
-      "pinned_limit_per_category": {"description": "每个分类的置顶上限，满额后按重要度轮换", "type": "int", "default": 3}
+      "summary_model": {
+        "description": "轮数总结模型",
+        "type": "string",
+        "_special": "select_provider",
+        "default": ""
+      },
+      "summary_every_turns": {
+        "description": "每隔多少轮做一次记忆抽取",
+        "type": "int",
+        "default": 6
+      },
+      "max_buffer_turns": {
+        "description": "每个会话保留多少轮用于总结",
+        "type": "int",
+        "default": 30
+      },
+      "round_summary_fetch_limit": {
+        "description": "轮数总结前最多从记忆库取多少条给 {existing} 做候选，0=不设上限",
+        "type": "int",
+        "default": 120
+      },
+      "round_summary_existing_limit": {
+        "description": "轮数总结 Prompt 中 {existing} 最多放多少条，0=不放",
+        "type": "int",
+        "default": 80
+      },
+      "round_summary_conversation_chars": {
+        "description": "轮数总结 Prompt 中 {conversation} 最多保留多少字符，0=不截断",
+        "type": "int",
+        "default": 4000
+      },
+      "embedding_enabled": {
+        "description": "启用 embedding 检索",
+        "type": "bool",
+        "default": true
+      },
+      "embedding_model": {
+        "description": "Embedding Provider ID（非 chat 模型）",
+        "hint": "如 openai_embedding、zhipu_embedding。留空自动使用默认",
+        "type": "string",
+        "default": ""
+      },
+      "embedding_threshold": {
+        "description": "embedding 检索最低相似度阈值",
+        "type": "float",
+        "default": 0.35
+      },
+      "pinned_limit_per_category": {
+        "description": "分类置顶上限默认值，未单独配置时使用",
+        "type": "int",
+        "default": 3
+      },
+      "profile_pinned_limit": {
+        "description": "profile 置顶上限",
+        "type": "int",
+        "default": 3
+      },
+      "agreement_pinned_limit": {
+        "description": "agreement 置顶上限",
+        "type": "int",
+        "default": 5
+      },
+      "event_pinned_limit": {
+        "description": "event 置顶上限",
+        "type": "int",
+        "default": 2
+      },
+      "fact_pinned_limit": {
+        "description": "fact 置顶上限",
+        "type": "int",
+        "default": 3
+      },
+      "knowledge_ref_pinned_limit": {
+        "description": "knowledge_ref 置顶上限",
+        "type": "int",
+        "default": 3
+      },
+      "slang_pinned_limit": {
+        "description": "slang 置顶上限",
+        "type": "int",
+        "default": 8
+      }
+    }
+  },
+  "slang_settings": {
+    "description": "黑话词典",
+    "type": "object",
+    "items": {
+      "enabled": {
+        "description": "启用黑话词典功能",
+        "type": "bool",
+        "default": true
+      },
+      "auto_extract": {
+        "description": "轮数总结时自动提取黑话",
+        "type": "bool",
+        "default": true
+      },
+      "slang_model": {
+        "description": "黑话提取/导入模型",
+        "type": "string",
+        "_special": "select_provider",
+        "default": ""
+      },
+      "batch_import_default_priority": {
+        "description": "批量导入黑话默认 priority",
+        "type": "float",
+        "default": 0.82
+      },
+      "batch_import_default_pinned": {
+        "description": "批量导入黑话默认置顶",
+        "type": "bool",
+        "default": false
+      },
+      "dedupe_limit": {
+        "description": "黑话批量导入时用于去重比对的已有黑话数量上限，0=不设上限",
+        "type": "int",
+        "default": 300
+      },
+      "import_existing_limit": {
+        "description": "黑话批量导入 Prompt 中 {existing} 最多放多少条已有 slang，0=不放",
+        "type": "int",
+        "default": 120
+      },
+      "import_text_chars": {
+        "description": "黑话批量导入 Prompt 中原始文本最多保留多少字符，0=不截断",
+        "type": "int",
+        "default": 12000
+      }
     }
   },
   "injection_settings": {
     "description": "分类注入",
     "type": "object",
     "items": {
-      "reference_header": {"description": "注入头说明", "type": "string", "default": "[用户相关记忆参考]"},
-      "max_injection_chars": {"description": "总注入字符上限", "type": "int", "default": 1200},
-      "agreement_limit": {"description": "每回合最多注入多少条 agreement", "type": "int", "default": 3},
-      "profile_limit": {"description": "每回合最多注入多少条 profile", "type": "int", "default": 4},
-      "event_limit": {"description": "每回合最多注入多少条 event", "type": "int", "default": 2},
-      "fact_limit": {"description": "每回合最多注入多少条 fact", "type": "int", "default": 3},
-      "knowledge_ref_limit": {"description": "每回合最多注入多少条 knowledge_ref", "type": "int", "default": 2}
+      "reference_header": {
+        "description": "注入头说明",
+        "type": "string",
+        "default": "[用户相关记忆参考]"
+      },
+      "max_injection_chars": {
+        "description": "总注入字符上限",
+        "type": "int",
+        "default": 1200
+      },
+      "agreement_limit": {
+        "description": "每回合最多注入多少条 agreement",
+        "type": "int",
+        "default": 3
+      },
+      "profile_limit": {
+        "description": "每回合最多注入多少条 profile",
+        "type": "int",
+        "default": 4
+      },
+      "slang_limit": {
+        "description": "每回合最多注入多少条 slang",
+        "type": "int",
+        "default": 4
+      },
+      "event_limit": {
+        "description": "每回合最多注入多少条 event",
+        "type": "int",
+        "default": 2
+      },
+      "fact_limit": {
+        "description": "每回合最多注入多少条 fact",
+        "type": "int",
+        "default": 3
+      },
+      "knowledge_ref_limit": {
+        "description": "每回合最多注入多少条 knowledge_ref",
+        "type": "int",
+        "default": 2
+      },
+      "slang_header": {
+        "description": "注入时黑话词典区块标题",
+        "type": "string",
+        "default": "黑话词典"
+      }
     }
   },
   "forgetting_settings": {
     "description": "遗忘机制",
     "type": "object",
     "items": {
-      "run_interval_hours": {"description": "每隔多少小时执行一次时间遗忘扫描", "type": "float", "default": 12},
-      "protect_pinned": {"description": "置顶记忆是否免于自动遗忘", "type": "bool", "default": true},
-      "profile_stale_after_days": {"description": "profile 多少天后转 stale，0=不自动 stale", "type": "int", "default": 0},
-      "profile_archive_after_days": {"description": "profile 多少天后归档，0=不自动归档", "type": "int", "default": 0},
-      "profile_ttl_days": {"description": "profile 默认 TTL 天数，0=不启用", "type": "int", "default": 0},
-      "agreement_stale_after_days": {"description": "agreement 多少天后转 stale，0=不自动 stale", "type": "int", "default": 0},
-      "agreement_archive_after_days": {"description": "agreement 多少天后归档，0=不自动归档", "type": "int", "default": 0},
-      "agreement_ttl_days": {"description": "agreement 默认 TTL 天数，0=不启用", "type": "int", "default": 0},
-      "event_stale_after_days": {"description": "event 多少天后转 stale，0=不自动 stale", "type": "int", "default": 3},
-      "event_archive_after_days": {"description": "event 多少天后归档，0=不自动归档", "type": "int", "default": 7},
-      "event_ttl_days": {"description": "event 默认 TTL 天数，0=不启用", "type": "int", "default": 7},
-      "fact_stale_after_days": {"description": "fact 多少天后转 stale，0=不自动 stale", "type": "int", "default": 14},
-      "fact_archive_after_days": {"description": "fact 多少天后归档，0=不自动归档", "type": "int", "default": 45},
-      "fact_ttl_days": {"description": "fact 默认 TTL 天数，0=不启用", "type": "int", "default": 0},
-      "knowledge_ref_stale_after_days": {"description": "knowledge_ref 多少天后转 stale，0=不自动 stale", "type": "int", "default": 14},
-      "knowledge_ref_archive_after_days": {"description": "knowledge_ref 多少天后归档，0=不自动归档", "type": "int", "default": 45},
-      "knowledge_ref_ttl_days": {"description": "knowledge_ref 默认 TTL 天数，0=不启用", "type": "int", "default": 0}
+      "run_interval_hours": {
+        "description": "每隔多少小时执行一次时间遗忘扫描",
+        "type": "float",
+        "default": 12
+      },
+      "protect_pinned": {
+        "description": "置顶记忆是否免于自动遗忘",
+        "type": "bool",
+        "default": true
+      },
+      "organizer_model": {
+        "description": "遗忘前记忆整理模型",
+        "type": "string",
+        "_special": "select_provider",
+        "default": ""
+      },
+      "organizer_memory_limit": {
+        "description": "遗忘整理最多选取多少条记忆，0=不设上限",
+        "type": "int",
+        "default": 500
+      },
+      "profile_decay_mode": {
+        "description": "profile 衰减方式：multiply=乘法衰减，subtract=固定扣减",
+        "type": "string",
+        "default": "multiply",
+        "options": [
+          "multiply",
+          "subtract"
+        ]
+      },
+      "profile_decay_value": {
+        "description": "profile 每次衰减数值",
+        "type": "float",
+        "default": 0.95
+      },
+      "profile_decay_interval_hours": {
+        "description": "profile 每隔多少小时衰减一次",
+        "type": "float",
+        "default": 24
+      },
+      "profile_archive_below_priority": {
+        "description": "profile 优先级低于等于该值时自动归档",
+        "type": "float",
+        "default": 0.2
+      },
+      "agreement_decay_mode": {
+        "description": "agreement 衰减方式：multiply=乘法衰减，subtract=固定扣减",
+        "type": "string",
+        "default": "multiply",
+        "options": [
+          "multiply",
+          "subtract"
+        ]
+      },
+      "agreement_decay_value": {
+        "description": "agreement 每次衰减数值",
+        "type": "float",
+        "default": 0.95
+      },
+      "agreement_decay_interval_hours": {
+        "description": "agreement 每隔多少小时衰减一次",
+        "type": "float",
+        "default": 24
+      },
+      "agreement_archive_below_priority": {
+        "description": "agreement 优先级低于等于该值时自动归档",
+        "type": "float",
+        "default": 0.2
+      },
+      "slang_decay_mode": {
+        "description": "slang 衰减方式：multiply=乘法衰减，subtract=固定扣减",
+        "type": "string",
+        "default": "multiply",
+        "options": [
+          "multiply",
+          "subtract"
+        ]
+      },
+      "slang_decay_value": {
+        "description": "slang 每次衰减数值",
+        "type": "float",
+        "default": 0.97
+      },
+      "slang_decay_interval_hours": {
+        "description": "slang 每隔多少小时衰减一次",
+        "type": "float",
+        "default": 24
+      },
+      "slang_archive_below_priority": {
+        "description": "slang 优先级低于等于该值时自动归档",
+        "type": "float",
+        "default": 0.2
+      },
+      "event_decay_mode": {
+        "description": "event 衰减方式：multiply=乘法衰减，subtract=固定扣减",
+        "type": "string",
+        "default": "multiply",
+        "options": [
+          "multiply",
+          "subtract"
+        ]
+      },
+      "event_decay_value": {
+        "description": "event 每次衰减数值",
+        "type": "float",
+        "default": 0.9
+      },
+      "event_decay_interval_hours": {
+        "description": "event 每隔多少小时衰减一次",
+        "type": "float",
+        "default": 24
+      },
+      "event_archive_below_priority": {
+        "description": "event 优先级低于等于该值时自动归档",
+        "type": "float",
+        "default": 0.15
+      },
+      "fact_decay_mode": {
+        "description": "fact 衰减方式：multiply=乘法衰减，subtract=固定扣减",
+        "type": "string",
+        "default": "multiply",
+        "options": [
+          "multiply",
+          "subtract"
+        ]
+      },
+      "fact_decay_value": {
+        "description": "fact 每次衰减数值",
+        "type": "float",
+        "default": 0.95
+      },
+      "fact_decay_interval_hours": {
+        "description": "fact 每隔多少小时衰减一次",
+        "type": "float",
+        "default": 24
+      },
+      "fact_archive_below_priority": {
+        "description": "fact 优先级低于等于该值时自动归档",
+        "type": "float",
+        "default": 0.15
+      },
+      "knowledge_ref_decay_mode": {
+        "description": "knowledge_ref 衰减方式：multiply=乘法衰减，subtract=固定扣减",
+        "type": "string",
+        "default": "multiply",
+        "options": [
+          "multiply",
+          "subtract"
+        ]
+      },
+      "knowledge_ref_decay_value": {
+        "description": "knowledge_ref 每次衰减数值",
+        "type": "float",
+        "default": 0.95
+      },
+      "knowledge_ref_decay_interval_hours": {
+        "description": "knowledge_ref 每隔多少小时衰减一次",
+        "type": "float",
+        "default": 24
+      },
+      "knowledge_ref_archive_below_priority": {
+        "description": "knowledge_ref 优先级低于等于该值时自动归档",
+        "type": "float",
+        "default": 0.15
+      },
+      "profile_stale_after_days": {
+        "description": "profile 多少天后开始衰减，0=不自动衰减",
+        "type": "int",
+        "default": 0
+      },
+      "agreement_stale_after_days": {
+        "description": "agreement 多少天后开始衰减，0=不自动衰减",
+        "type": "int",
+        "default": 0
+      },
+      "slang_stale_after_days": {
+        "description": "slang 多少天后开始衰减，0=不自动衰减",
+        "type": "int",
+        "default": 45
+      },
+      "event_stale_after_days": {
+        "description": "event 多少天后开始衰减，0=不自动衰减",
+        "type": "int",
+        "default": 3
+      },
+      "fact_stale_after_days": {
+        "description": "fact 多少天后开始衰减，0=不自动衰减",
+        "type": "int",
+        "default": 14
+      },
+      "knowledge_ref_stale_after_days": {
+        "description": "knowledge_ref 多少天后开始衰减，0=不自动衰减",
+        "type": "int",
+        "default": 14
+      }
     }
   },
   "tool_settings": {
     "description": "Agent 主动写入工具",
     "type": "object",
     "items": {
-      "allow_agent_add": {"description": "允许 agent 主动调用写入工具", "type": "bool", "default": true},
-      "default_tool_priority": {"description": "agent 主动写入默认优先级", "type": "float", "default": 0.75}
+      "allow_agent_add": {
+        "description": "允许 agent 主动调用写入工具",
+        "type": "bool",
+        "default": true
+      },
+      "default_tool_priority": {
+        "description": "agent 主动写入默认优先级",
+        "type": "float",
+        "default": 0.75
+      }
     }
   },
   "prompt_settings": {
     "description": "Prompt 自定义",
     "type": "object",
     "items": {
-      "round_summary_prompt": {"description": "轮数总结提取 Prompt，可用 {existing} {conversation}", "type": "string", "default": ""}
+      "round_summary_prompt": {
+        "description": "轮数总结提取 Prompt，可用 {existing} {conversation}",
+        "type": "string",
+        "default": "你是一个“用户相关记忆整理器”。请从下面这段对话里，只提取以后值得长期参考的、和用户直接相关的简短记忆。\n\n只允许提取这六类：\n- profile: 用户稳定信息、偏好、禁忌、习惯、设备、项目背景\n- agreement: 用户和助手之间明确约定、称呼、规则、禁令、偏好要求\n- slang: 用户个人黑话、圈内简称、群友梗、特殊语义映射、说法习惯\n- event: 最近简短事件，例如今天做了什么、刚发生了什么\n- fact: 对用户有用的简短事实，不是通用百科\n- knowledge_ref: 某类知识、文件、目录、插件、页面、说明存放在哪里\n\n规则：\n1. 只记用户相关内容，不记工具调用，不记助手自己的内在想法\n2. 每条都要简短、独立、可直接注入\n3. 不要重复同义改写\n4. 不确定就不要编\n5. event 类尽量短时有效；agreement/profile/slang 类更稳定\n6. 如果用户给某个词、缩写、梗、句式赋予了特定含义，优先记为 slang\n\n输出严格 JSON 数组：\n[\n  {{\n    \"category\": \"profile|agreement|slang|event|fact|knowledge_ref\",\n    \"content\": \"一条简短记忆\",\n    \"priority\": 0.0,\n    \"confidence\": 0.0,\n    \"pinned\": false,\n    \"note\": \"可选补充说明\"\n  }}\n]\n\n当前已有记忆（用于避免重复）：\n{existing}\n\n对话：\n{conversation}\n"
+      },
+      "slang_import_prompt": {
+        "description": "黑话长文本导入 Prompt，可用 {existing} {conversation}",
+        "type": "string",
+        "default": "你是一个“用户黑话词典整理器”。下面是一段长文本，请从中提取用户可能长期会使用的黑话、简称、圈内梗、特殊含义映射。\n\n目标：\n1. 只提取以后值得长期记住的黑话/术语\n2. 一条一条独立输出，适合直接写进长期记忆\n3. 如果文本里出现“某词 = 某意思 / 某说法代表什么 / 在我们这里是什么意思”，优先提取\n4. 不要提取一次性的情绪话、废话、普通口头禅\n5. 不确定就不要编\n\n输出严格 JSON 数组：\n[\n  {{\n    \"category\": \"slang\",\n    \"content\": \"黑话本体 + 简短释义\",\n    \"priority\": 0.0,\n    \"confidence\": 0.0,\n    \"pinned\": false,\n    \"note\": \"适用语境、来源、补充说明\"\n  }}\n]\n\n已有黑话（避免重复）：\n{existing}\n\n原始文本：\n{conversation}\n"
+      },
+      "forgetting_organizer_prompt": {
+        "description": "遗忘扫描前记忆整理 Prompt，可用 {existing}",
+        "type": "string",
+        "default": "你是一个“用户记忆库整理器”。下面给你一批已有记忆，请输出明确的整理动作，不要新增无中生有的内容。\n\n目标：\n1. 找出语义高度重复、明显可以合并的记忆\n2. 找出明显过时、被新信息纠正、或与更可信记忆冲突的记忆\n3. 对每个动作给出清晰 reason\n4. 只有非常确定时才处理，不确定就不要动\n\n规则：\n1. merge 只能在同一 category 内执行\n2. update 用于修正一条记忆本身\n3. archive 用于归档重复、过时、被明确纠正或冲突失败的记忆\n4. agreement/profile 要更谨慎\n4. 输出里只能引用下面给出的 id\n5. pinned 代表重要，不代表永远正确；如果确实过时或冲突，也可以建议 archive\n6. 如果无需整理，返回空数组 []\n\n输出严格 JSON 数组：\n[\n  {{\n    \"action\": \"merge\",\n    \"target_id\": 1,\n    \"source_ids\": [2, 3],\n    \"content\": \"合并后的最终内容\",\n    \"priority\": 0.0,\n    \"confidence\": 0.0,\n    \"pinned\": false,\n    \"note\": \"可选补充说明\",\n    \"reason\": \"为什么这样合并\"\n  }},\n  {{\n    \"action\": \"update\",\n    \"target_id\": 4,\n    \"content\": \"更新后的最终内容\",\n    \"priority\": 0.0,\n    \"confidence\": 0.0,\n    \"pinned\": false,\n    \"note\": \"可选补充说明\",\n    \"reason\": \"为什么这样更新\"\n  }},\n  {{\n    \"action\": \"archive\",\n    \"target_id\": 5,\n    \"reason\": \"为什么归档\"\n  }}\n]\n\n已有记忆：\n{existing}\n"
+      }
     }
   },
   "debug_settings": {
     "description": "调试输出",
     "type": "object",
     "items": {
-      "debug_level": {"description": "日志等级", "type": "string", "default": "basic", "options": ["off", "basic", "verbose", "trace"]},
-      "log_injection_detail": {"description": "显示详细注入内容（每条记忆详情）", "type": "bool", "default": false}
+      "debug_level": {
+        "description": "日志等级",
+        "type": "string",
+        "default": "basic",
+        "options": [
+          "off",
+          "basic",
+          "verbose",
+          "trace"
+        ]
+      },
+      "log_injection_detail": {
+        "description": "显示详细注入内容（每条记忆详情）",
+        "type": "bool",
+        "default": false
+      }
     }
   },
   "webui_settings": {
     "description": "WebUI",
     "type": "object",
     "items": {
-      "enabled": {"description": "启用 WebUI", "type": "bool", "default": true},
-      "host": {"description": "监听地址", "type": "string", "default": "127.0.0.1"},
-      "port": {"description": "监听端口", "type": "int", "default": 6187},
-      "access_password": {"description": "访问密码（留空自动生成）", "type": "string", "default": ""},
-      "session_timeout": {"description": "登录会话超时秒数", "type": "int", "default": 3600}
+      "enabled": {
+        "description": "启用 WebUI",
+        "type": "bool",
+        "default": true
+      },
+      "host": {
+        "description": "监听地址",
+        "type": "string",
+        "default": "127.0.0.1"
+      },
+      "port": {
+        "description": "监听端口",
+        "type": "int",
+        "default": 6187
+      },
+      "access_password": {
+        "description": "访问密码（留空自动生成）",
+        "type": "string",
+        "default": ""
+      },
+      "session_timeout": {
+        "description": "登录会话超时秒数",
+        "type": "int",
+        "default": 3600
+      }
     }
   }
 }

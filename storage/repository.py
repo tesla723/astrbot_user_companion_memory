@@ -28,10 +28,11 @@ class MemoryItem:
     last_used_at: float = 0.0
     use_count: int = 0
     expires_at: float | None = None
+    decayed_at: float = 0.0
 
 
 class CompanionRepository:
-    CATEGORIES = ("profile", "agreement", "event", "fact", "knowledge_ref")
+    CATEGORIES = ("profile", "agreement", "slang", "event", "fact", "knowledge_ref")
 
     @staticmethod
     def _activity_ts(item: dict[str, Any]) -> float:
@@ -42,9 +43,11 @@ class CompanionRepository:
         forgetting = config.get("forgetting_settings", {})
         return {
             "stale_after_days": int(forgetting.get(f"{category}_stale_after_days", 0)),
-            "archive_after_days": int(forgetting.get(f"{category}_archive_after_days", 0)),
-            "fallback_ttl_days": int(forgetting.get(f"{category}_ttl_days", 0)),
             "protect_pinned": bool(forgetting.get("protect_pinned", True)),
+            "decay_mode": str(forgetting.get(f"{category}_decay_mode", forgetting.get("decay_mode", "multiply"))),
+            "decay_value": float(forgetting.get(f"{category}_decay_value", forgetting.get("decay_value", 0.95))),
+            "decay_interval_hours": float(forgetting.get(f"{category}_decay_interval_hours", forgetting.get("decay_interval_hours", 24))),
+            "archive_below_priority": float(forgetting.get(f"{category}_archive_below_priority", forgetting.get("archive_below_priority", 0.15))),
         }
 
     def __init__(self, data_dir: str):
@@ -90,6 +93,7 @@ class CompanionRepository:
                     last_used_at REAL NOT NULL DEFAULT 0,
                     use_count INTEGER NOT NULL DEFAULT 0,
                     expires_at REAL,
+                    decayed_at REAL NOT NULL DEFAULT 0,
                     embedding BLOB,
                     embedding_model TEXT NOT NULL DEFAULT ''
                 )
@@ -111,6 +115,8 @@ class CompanionRepository:
                 c.execute("ALTER TABLE memory_items ADD COLUMN embedding BLOB")
             if "embedding_model" not in columns:
                 c.execute("ALTER TABLE memory_items ADD COLUMN embedding_model TEXT NOT NULL DEFAULT ''")
+            if "decayed_at" not in columns:
+                c.execute("ALTER TABLE memory_items ADD COLUMN decayed_at REAL NOT NULL DEFAULT 0")
             c.execute(
                 """
                 CREATE TABLE IF NOT EXISTS session_state (
@@ -133,8 +139,8 @@ class CompanionRepository:
                 INSERT INTO memory_items (
                     category, content, priority, pinned, confidence, source, note,
                     tags, status, ttl_days, created_at, updated_at, last_used_at,
-                    use_count, expires_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    use_count, expires_at, decayed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.category,
@@ -152,6 +158,7 @@ class CompanionRepository:
                     item.last_used_at,
                     item.use_count,
                     item.expires_at,
+                    item.decayed_at,
                 ),
             )
             item_id = int(c.lastrowid)
@@ -162,7 +169,7 @@ class CompanionRepository:
         allowed = {
             "category", "content", "priority", "pinned", "confidence",
             "source", "note", "tags", "status", "ttl_days", "last_used_at",
-            "use_count", "expires_at", "embedding", "embedding_model",
+            "use_count", "expires_at", "decayed_at", "embedding", "embedding_model",
         }
         clean: dict[str, Any] = {}
         for key, value in updates.items():
@@ -215,8 +222,10 @@ class CompanionRepository:
         sql = "SELECT * FROM memory_items"
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
-        sql += " ORDER BY pinned DESC, priority DESC, updated_at DESC LIMIT ?"
-        params.append(limit)
+        sql += " ORDER BY pinned DESC, priority DESC, updated_at DESC"
+        if limit > 0:
+            sql += " LIMIT ?"
+            params.append(limit)
         with self._cursor() as c:
             c.execute(sql, params)
             rows = c.fetchall()
@@ -306,7 +315,7 @@ class CompanionRepository:
         categories: list[str] | None = None,
         limit: int = 1000,
     ) -> list[dict[str, Any]]:
-        clauses = ["status = 'active'", "embedding IS NOT NULL", "(expires_at IS NULL OR expires_at > ?)"]
+        clauses = ["status != 'archived'", "embedding IS NOT NULL", "(expires_at IS NULL OR expires_at > ?)"]
         params: list[Any] = [time.time()]
         if categories:
             placeholders = ",".join("?" for _ in categories)
@@ -370,6 +379,7 @@ class CompanionRepository:
                     ttl_days=ttl_days if ttl_days > 0 else item["ttl_days"],
                     tags=tags or item["tags"],
                     status="active",
+                    decayed_at=0,
                 )
                 return "updated", item["id"]
         item_id = self.add_memory(
@@ -389,17 +399,12 @@ class CompanionRepository:
 
     def run_forgetting(self, config: dict[str, Any]) -> dict[str, int]:
         now = time.time()
-        counts = {"stale": 0, "archived": 0, "expired": 0}
+        counts = {"stale": 0, "decayed": 0, "archived": 0}
         items = self.list_memories(status="", limit=5000, include_expired=True)
         for item in items:
             item_id = int(item["id"])
             status = str(item.get("status", "active"))
             if status == "archived":
-                continue
-            expires_at = item.get("expires_at")
-            if expires_at is not None and float(expires_at) <= now:
-                if self.update_memory(item_id, status="archived"):
-                    counts["expired"] += 1
                 continue
 
             rule = self._category_forgetting_rule(str(item.get("category", "")), config)
@@ -407,25 +412,67 @@ class CompanionRepository:
                 continue
 
             activity_ts = self._activity_ts(item)
-            ttl_days = int(item.get("ttl_days") or 0) or int(rule["fallback_ttl_days"])
-            if ttl_days > 0 and activity_ts and activity_ts <= now - ttl_days * 86400:
-                if self.update_memory(item_id, status="archived"):
-                    counts["archived"] += 1
-                continue
-
-            archive_days = int(rule["archive_after_days"])
-            if archive_days > 0 and activity_ts and activity_ts <= now - archive_days * 86400:
-                if self.update_memory(item_id, status="archived"):
-                    counts["archived"] += 1
-                continue
-
             stale_days = int(rule["stale_after_days"])
-            if status == "active" and stale_days > 0 and activity_ts and activity_ts <= now - stale_days * 86400:
-                if self.update_memory(item_id, status="stale"):
-                    counts["stale"] += 1
+            if stale_days <= 0 or not activity_ts:
+                continue
+            stale_at = activity_ts + stale_days * 86400
+            if now < stale_at:
+                continue
+            if status == "active":
+                self._apply_decay_fields(item_id, status="stale", decayed_at=stale_at)
+                status = "stale"
+                counts["stale"] += 1
+
+            interval_seconds = max(float(rule["decay_interval_hours"]), 0.01) * 3600
+            last_decayed_at = float(item.get("decayed_at") or 0) or stale_at
+            last_decayed_at = max(last_decayed_at, stale_at)
+            intervals = int((now - last_decayed_at) // interval_seconds)
+            if intervals <= 0:
+                continue
+            old_priority = float(item.get("priority", 0.0))
+            new_priority = self._decayed_priority(
+                old_priority,
+                mode=str(rule["decay_mode"]),
+                value=float(rule["decay_value"]),
+                intervals=intervals,
+            )
+            archive_below = float(rule["archive_below_priority"])
+            new_status = "archived" if new_priority <= archive_below else status
+            self._apply_decay_fields(
+                item_id,
+                priority=new_priority,
+                status=new_status,
+                decayed_at=last_decayed_at + intervals * interval_seconds,
+            )
+            counts["decayed"] += 1
+            if new_status == "archived":
+                counts["archived"] += 1
         if any(counts.values()):
             self.log_event("forgetting", str(counts))
         return counts
+
+    @staticmethod
+    def _decayed_priority(priority: float, mode: str, value: float, intervals: int) -> float:
+        priority = max(0.0, min(1.0, priority))
+        intervals = max(0, intervals)
+        if intervals <= 0:
+            return round(priority, 4)
+        if mode == "subtract":
+            next_priority = priority - max(0.0, value) * intervals
+        else:
+            factor = max(0.0, min(1.0, value))
+            next_priority = priority * (factor ** intervals)
+        return round(max(0.0, min(1.0, next_priority)), 4)
+
+    def _apply_decay_fields(self, item_id: int, **updates: Any) -> None:
+        allowed = {"priority", "status", "decayed_at"}
+        clean = {k: v for k, v in updates.items() if k in allowed and v is not None}
+        if not clean:
+            return
+        set_clause = ", ".join(f"{k}=?" for k in clean)
+        values = list(clean.values()) + [item_id]
+        with self._cursor() as c:
+            c.execute(f"UPDATE memory_items SET {set_clause} WHERE id = ?", values)
 
     def explain_forgetting(self, item: dict[str, Any], config: dict[str, Any], now: float | None = None) -> dict[str, Any]:
         now = time.time() if now is None else now
@@ -433,9 +480,10 @@ class CompanionRepository:
         protected = bool(item.get("pinned")) and rule["protect_pinned"]
         activity_ts = self._activity_ts(item)
         stale_after_days = int(rule["stale_after_days"])
-        archive_after_days = int(rule["archive_after_days"])
-        fallback_ttl_days = int(rule["fallback_ttl_days"])
-        ttl_days = int(item.get("ttl_days") or 0) or fallback_ttl_days
+        decay_interval_hours = float(rule["decay_interval_hours"])
+        decay_value = float(rule["decay_value"])
+        decay_mode = str(rule["decay_mode"])
+        archive_below_priority = float(rule["archive_below_priority"])
 
         def remain_days(target_ts: float | None) -> float | None:
             if not target_ts:
@@ -443,25 +491,38 @@ class CompanionRepository:
             return round((target_ts - now) / 86400, 2)
 
         stale_at = activity_ts + stale_after_days * 86400 if stale_after_days > 0 and activity_ts and not protected else None
-        archive_at = activity_ts + archive_after_days * 86400 if archive_after_days > 0 and activity_ts and not protected else None
-        ttl_at = activity_ts + ttl_days * 86400 if ttl_days > 0 and activity_ts and not protected else None
-        expires_at = float(item["expires_at"]) if item.get("expires_at") is not None else None
+        interval_seconds = max(decay_interval_hours, 0.01) * 3600
+        decayed_at = float(item.get("decayed_at") or 0) or None
+        next_decay_at = None
+        if stale_at and now >= stale_at:
+            base = max(decayed_at or stale_at, stale_at)
+            next_decay_at = base + interval_seconds
+        projected_priority = float(item.get("priority", 0.0))
+        projected_archive_in_days = None
+        decay_can_reduce = (decay_mode == "subtract" and decay_value > 0) or (
+            decay_mode != "subtract" and 0 <= decay_value < 1
+        )
+        if next_decay_at and projected_priority > archive_below_priority and decay_can_reduce:
+            steps = 0
+            while projected_priority > archive_below_priority and steps < 10000:
+                steps += 1
+                projected_priority = self._decayed_priority(projected_priority, decay_mode, decay_value, 1)
+            projected_archive_in_days = remain_days(next_decay_at + max(0, steps - 1) * interval_seconds)
 
         return {
             "protected": protected,
             "activity_at": activity_ts or None,
             "stale_after_days": stale_after_days,
-            "archive_after_days": archive_after_days,
-            "fallback_ttl_days": fallback_ttl_days,
-            "ttl_days_effective": ttl_days,
+            "decay_mode": decay_mode,
+            "decay_value": decay_value,
+            "decay_interval_hours": decay_interval_hours,
+            "archive_below_priority": archive_below_priority,
+            "decayed_at": decayed_at,
             "stale_at": stale_at,
-            "archive_at": archive_at,
-            "ttl_at": ttl_at,
-            "expires_at": expires_at,
+            "next_decay_at": next_decay_at,
             "stale_in_days": remain_days(stale_at),
-            "archive_in_days": remain_days(archive_at),
-            "ttl_in_days": remain_days(ttl_at),
-            "expires_in_days": remain_days(expires_at),
+            "next_decay_in_days": remain_days(next_decay_at),
+            "projected_archive_in_days": projected_archive_in_days,
         }
 
     def get_dashboard_stats(self) -> dict[str, Any]:

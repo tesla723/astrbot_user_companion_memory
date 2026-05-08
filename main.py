@@ -28,8 +28,8 @@ from .webui.server import WebUIServer
     "astrbot_plugin_user_companion_memory",
     "tesla",
     "用户分类记忆插件——按类别记住用户信息、约定、事件、知识索引并每回合注入",
-    "1.0.6",
-    "https://github.com/tesla/astrbot_user_companion_memory",
+    "1.1.3",
+    "https://github.com/tesla723/astrbot_user_companion_memory",
 )
 class UserCompanionMemoryPlugin(Star):
     def __init__(self, context: Context, config: dict[str, Any]):
@@ -47,6 +47,8 @@ class UserCompanionMemoryPlugin(Star):
         self._turn_buffers: dict[str, deque[dict[str, str]]] = {}
         self._request_dedup: dict[tuple[str, str], float] = {}
         self._background_tasks: set[asyncio.Task] = set()
+        self._summary_tasks: dict[str, asyncio.Task] = {}
+        self._forgetting_task: asyncio.Task | None = None
         self._last_forgetting_run_at: float = 0.0
         self._embedding_provider: EmbeddingProvider | None = None
         self._embedding_provider_initialized = False
@@ -59,7 +61,7 @@ class UserCompanionMemoryPlugin(Star):
             logger.info(f"[用户记忆] {msg}")
 
     def _load_runtime_config(self) -> dict[str, Any]:
-        merged = dict(self._raw_config)
+        merged: dict[str, Any] = {}
         runtime_path = os.path.join(self.data_dir, "runtime_config.json")
         if os.path.exists(runtime_path):
             try:
@@ -68,18 +70,21 @@ class UserCompanionMemoryPlugin(Star):
                 for section, values in runtime_cfg.items():
                     if section == "last_updated":
                         continue
-                    if isinstance(values, dict) and isinstance(merged.get(section), dict):
-                        merged[section].update(values)
-                    else:
-                        merged[section] = values
+                    merged[section] = values
             except Exception as e:
                 logger.warning(f"[用户记忆] 读取运行时配置失败: {e}")
+        for section, values in self._raw_config.items():
+            if isinstance(values, dict) and isinstance(merged.get(section), dict):
+                merged[section].update(values)
+            else:
+                merged[section] = values
         return merged
 
     def update_runtime_config(self, updates: dict[str, Any]) -> dict[str, Any]:
         allowed = {
             "memory_settings", "injection_settings", "forgetting_settings",
             "prompt_settings", "tool_settings", "debug_settings", "webui_settings",
+            "slang_settings",
         }
         runtime_path = os.path.join(self.data_dir, "runtime_config.json")
         existing: dict[str, Any] = {}
@@ -92,13 +97,15 @@ class UserCompanionMemoryPlugin(Star):
         for section, values in updates.items():
             if section not in allowed or not isinstance(values, dict):
                 continue
-            target = self.config.setdefault(section, {})
-            target.update(values)
             existing.setdefault(section, {}).update(values)
         existing["last_updated"] = time.time()
         with open(runtime_path + ".tmp", "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
         os.replace(runtime_path + ".tmp", runtime_path)
+        self.config = self._load_runtime_config()
+        self.analyzer.config = self.config
+        if self.webui:
+            self.webui.config = self.config
         return self.config
 
     async def initialize(self) -> None:
@@ -128,8 +135,8 @@ class UserCompanionMemoryPlugin(Star):
         if not user_text:
             return
         self._capture_user_turn(session_id, user_text)
-        await self._maybe_summarize(session_id)
-        await self._run_forgetting_if_needed()
+        self._schedule_summary_if_needed(session_id)
+        self._schedule_forgetting_if_needed()
         built = await self._build_injection(user_text)
         if isinstance(built, tuple) and len(built) == 2:
             injection, used_ids = built
@@ -175,7 +182,15 @@ class UserCompanionMemoryPlugin(Star):
         max_turns = int(self.config.get("memory_settings", {}).get("max_buffer_turns", 30))
         buf = self._turn_buffers.setdefault(session_id, deque(maxlen=max_turns))
         buf.append({"user": user_text, "assistant": ""})
-        self._dbg(f"记录用户回合 session={session_id} turn={turn_count} buf={len(buf)}", "basic")
+        every_turns = int(self.config.get("memory_settings", {}).get("summary_every_turns", 6))
+        last_summary_turn = int(state.get("last_summary_turn", 0))
+        pending_turns = turn_count - last_summary_turn
+        remaining_turns = max(every_turns - pending_turns, 0) if every_turns > 0 else -1
+        self._dbg(
+            f"记录用户回合 session={session_id} turn={turn_count} buf={len(buf)} "
+            f"last_summary_turn={last_summary_turn} pending={pending_turns} remaining_to_summary={remaining_turns}",
+            "basic",
+        )
 
     def _attach_assistant_reply(self, session_id: str, assistant_text: str) -> None:
         buf = self._turn_buffers.setdefault(session_id, deque(maxlen=int(self.config.get("memory_settings", {}).get("max_buffer_turns", 30))))
@@ -183,19 +198,64 @@ class UserCompanionMemoryPlugin(Star):
             return
         buf[-1]["assistant"] = assistant_text
 
-    async def _maybe_summarize(self, session_id: str) -> None:
+    def _schedule_summary_if_needed(self, session_id: str) -> None:
+        existing = self._summary_tasks.get(session_id)
+        if existing and not existing.done():
+            self._dbg(f"总结任务已在后台运行 session={session_id}", "trace")
+            return
+        if not self._should_summarize(session_id):
+            return
+        task = asyncio.create_task(self._run_summary_task(session_id))
+        self._summary_tasks[session_id] = task
+        self._background_tasks.add(task)
+
+        def _cleanup(done_task: asyncio.Task, sid: str = session_id) -> None:
+            self._background_tasks.discard(done_task)
+            current = self._summary_tasks.get(sid)
+            if current is done_task:
+                self._summary_tasks.pop(sid, None)
+            try:
+                done_task.result()
+            except asyncio.CancelledError:
+                self._dbg(f"后台总结已取消 session={sid}", "basic")
+            except Exception as e:
+                logger.exception(f"[用户记忆] 后台总结失败 session={sid}: {e}")
+
+        task.add_done_callback(_cleanup)
+        self._dbg(f"已调度后台总结 session={session_id}", "basic")
+
+    def _should_summarize(self, session_id: str) -> bool:
         cfg = self.config.get("memory_settings", {})
         every_turns = int(cfg.get("summary_every_turns", 6))
         if every_turns <= 0:
-            return
+            return False
         state = self.repo.get_session_state(session_id)
+        current_turn = int(state["turn_count"])
+        last_summary_turn = int(state["last_summary_turn"])
         pending_turns = int(state["turn_count"]) - int(state["last_summary_turn"])
         if pending_turns < every_turns:
             self._dbg(
-                f"总结未触发 session={session_id} pending={pending_turns}/{every_turns}",
-                "trace",
+                f"总结未触发 session={session_id} turn={current_turn} last_summary_turn={last_summary_turn} "
+                f"pending={pending_turns}/{every_turns} remaining={every_turns - pending_turns}",
+                "basic",
             )
+            return False
+        self._dbg(
+            f"总结触发 session={session_id} turn={current_turn} last_summary_turn={last_summary_turn} "
+            f"pending={pending_turns}/{every_turns}",
+            "basic",
+        )
+        return True
+
+    async def _run_summary_task(self, session_id: str) -> None:
+        await asyncio.sleep(0)
+        await self._maybe_summarize(session_id)
+
+    async def _maybe_summarize(self, session_id: str) -> None:
+        if not self._should_summarize(session_id):
             return
+        state = self.repo.get_session_state(session_id)
+        pending_turns = int(state["turn_count"]) - int(state["last_summary_turn"])
         conversation = self._render_buffer(session_id)
         if not conversation.strip():
             return
@@ -206,9 +266,16 @@ class UserCompanionMemoryPlugin(Star):
         provider_id = self.config.get("memory_settings", {}).get("summary_model", "")
         items = await self.analyzer.extract_memories(
             conversation,
-            self.repo.list_memories(limit=120, include_expired=True),
+            self.repo.list_memories(
+                limit=int(self.config.get("memory_settings", {}).get("round_summary_fetch_limit", 120)),
+                include_expired=True,
+            ),
             provider_id=provider_id,
         )
+        if not bool(self.config.get("slang_settings", {}).get("enabled", True)):
+            items = [item for item in items if item.get("category") != "slang"]
+        elif not bool(self.config.get("slang_settings", {}).get("auto_extract", True)):
+            items = [item for item in items if item.get("category") != "slang"]
         created = 0
         updated = 0
         for item in items:
@@ -237,6 +304,13 @@ class UserCompanionMemoryPlugin(Star):
         )
 
     async def _run_forgetting_if_needed(self) -> None:
+        merge_counts = await self.run_memory_organizer()
+        if merge_counts["merged"] or merge_counts["archived"]:
+            self._dbg(f"遗忘前整理 {merge_counts}", "basic")
+        counts = self.repo.run_forgetting(self.config)
+        self._dbg(f"遗忘扫描 {counts}", "basic")
+
+    def _schedule_forgetting_if_needed(self) -> None:
         forgetting = self.config.get("forgetting_settings", {})
         interval_hours = float(forgetting.get("run_interval_hours", 12))
         if interval_hours <= 0:
@@ -245,13 +319,204 @@ class UserCompanionMemoryPlugin(Star):
         if self._last_forgetting_run_at <= 0:
             self._last_forgetting_run_at = now
             return
-        if now - self._last_forgetting_run_at >= interval_hours * 3600:
-            counts = self.repo.run_forgetting(self.config)
-            self._last_forgetting_run_at = now
-            self._dbg(f"遗忘扫描 {counts}", "basic")
+        if self._forgetting_task and not self._forgetting_task.done():
+            self._dbg("遗忘扫描任务已在后台运行", "trace")
+            return
+        if self._last_forgetting_run_at > 0 and now - self._last_forgetting_run_at < interval_hours * 3600:
+            return
+        self._last_forgetting_run_at = now
+        task = asyncio.create_task(self._run_forgetting_task())
+        self._forgetting_task = task
+        self._background_tasks.add(task)
 
-    def _pinned_limit(self) -> int:
-        return int(self.config.get("memory_settings", {}).get("pinned_limit_per_category", 3))
+        def _cleanup(done_task: asyncio.Task) -> None:
+            self._background_tasks.discard(done_task)
+            if self._forgetting_task is done_task:
+                self._forgetting_task = None
+            try:
+                done_task.result()
+            except asyncio.CancelledError:
+                self._dbg("后台遗忘扫描已取消", "basic")
+            except Exception as e:
+                logger.exception(f"[用户记忆] 后台遗忘扫描失败: {e}")
+
+        task.add_done_callback(_cleanup)
+        self._dbg("已调度后台遗忘扫描", "basic")
+
+    async def _run_forgetting_task(self) -> None:
+        await asyncio.sleep(0)
+        await self._run_forgetting_if_needed()
+
+    async def run_memory_organizer(self) -> dict[str, Any]:
+        provider_id = str(self.config.get("forgetting_settings", {}).get("organizer_model", "")).strip()
+        if not provider_id:
+            provider_id = str(self.config.get("memory_settings", {}).get("summary_model", "")).strip()
+        return await self._organize_memories_before_forgetting(provider_id)
+
+    async def run_forgetting_now(self) -> dict[str, Any]:
+        organizer = await self.run_memory_organizer()
+        forgetting = self.repo.run_forgetting(self.config)
+        self.repo.log_event(
+            "forgetting_manual",
+            json.dumps({"organizer": organizer, "forgetting": forgetting}, ensure_ascii=False)[:1800],
+        )
+        return {"organizer": organizer, "forgetting": forgetting}
+
+    async def _organize_memories_before_forgetting(self, provider_id: str) -> dict[str, Any]:
+        organizer_limit = int(self.config.get("forgetting_settings", {}).get("organizer_memory_limit", 500))
+        items = self.repo.list_memories(status="", limit=organizer_limit, include_expired=True)
+        items = [item for item in items if item.get("status") != "archived"]
+        if len(items) < 2:
+            result = {"merged": 0, "updated": 0, "archived": 0, "skipped": 0, "details": []}
+            self.repo.log_event("forgetting_organizer", json.dumps(result, ensure_ascii=False))
+            return result
+        plans = await self.analyzer.organize_existing_memories(
+            items,
+            provider_id=provider_id,
+            max_items=organizer_limit,
+        )
+        if not plans:
+            result = {"merged": 0, "updated": 0, "archived": 0, "skipped": 0, "details": []}
+            self.repo.log_event("forgetting_organizer", json.dumps(result, ensure_ascii=False))
+            return result
+        by_id = {int(item["id"]): item for item in items}
+        merged = updated = archived = skipped = 0
+        details: list[dict[str, Any]] = []
+        consumed: set[int] = set()
+
+        def memory_snapshot(item: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "id": int(item.get("id", 0)),
+                "category": str(item.get("category", "")),
+                "content": str(item.get("content", ""))[:240],
+                "priority": float(item.get("priority", 0.0)),
+                "status": str(item.get("status", "")),
+                "note": str(item.get("note", ""))[:160],
+            }
+
+        for plan in plans:
+            action = str(plan.get("action", "merge"))
+            target_id = int(plan["target_id"])
+            if target_id not in by_id or target_id in consumed:
+                skipped += 1
+                continue
+            target = by_id[target_id]
+            if action == "archive":
+                if self.repo.update_memory(target_id, status="archived", pinned=False, note=str(plan.get("reason", "") or target.get("note", ""))[:240]):
+                    archived += 1
+                    consumed.add(target_id)
+                    details.append({
+                        "action": "archive",
+                        "target_id": target_id,
+                        "target_before": memory_snapshot(target),
+                        "reason": plan.get("reason", ""),
+                    })
+                continue
+            if action == "update":
+                merged_priority = max(float(target.get("priority", 0.0)), float(plan.get("priority", 0.0)))
+                merged_confidence = max(float(target.get("confidence", 0.0)), float(plan.get("confidence", 0.0)))
+                normalized_pin = self._normalize_pinned_request(
+                    bool(plan.get("pinned", False)) or bool(target.get("pinned")),
+                    source="forgetting_organizer_update",
+                    category=str(target.get("category", "")),
+                    content=str(plan.get("content", "")),
+                    new_priority=merged_priority,
+                    current_item_id=target_id,
+                )
+                self.repo.update_memory(
+                    target_id,
+                    content=str(plan["content"]),
+                    priority=merged_priority,
+                    confidence=merged_confidence,
+                    pinned=normalized_pin,
+                    note=str(plan.get("note", "") or plan.get("reason", "") or target.get("note", ""))[:240],
+                    status="active",
+                    decayed_at=0,
+                )
+                await self._refresh_memory_embedding(target_id, str(plan["content"]))
+                updated += 1
+                consumed.add(target_id)
+                details.append({
+                    "action": "update",
+                    "target_id": target_id,
+                    "target_before": memory_snapshot(target),
+                    "content": plan["content"],
+                    "reason": plan.get("reason", ""),
+                })
+                continue
+            source_ids = [
+                sid for sid in plan["source_ids"]
+                if sid in by_id and sid not in consumed and sid != target_id
+            ]
+            if not source_ids:
+                skipped += 1
+                continue
+            if any(by_id[sid].get("category") != target.get("category") for sid in source_ids):
+                skipped += 1
+                continue
+            merged_priority = max(
+                [float(target.get("priority", 0.0))]
+                + [float(by_id[sid].get("priority", 0.0)) for sid in source_ids]
+                + [float(plan.get("priority", 0.0))]
+            )
+            merged_confidence = max(
+                [float(target.get("confidence", 0.0))]
+                + [float(by_id[sid].get("confidence", 0.0)) for sid in source_ids]
+                + [float(plan.get("confidence", 0.0))]
+            )
+            merged_pinned = (
+                bool(plan.get("pinned", False))
+                or bool(target.get("pinned"))
+                or any(bool(by_id[sid].get("pinned")) for sid in source_ids)
+            )
+            merged_note = str(plan.get("note", "")).strip() or str(target.get("note", "")).strip()
+            normalized_pin = self._normalize_pinned_request(
+                merged_pinned,
+                source="forgetting_organizer",
+                category=str(target.get("category", "")),
+                content=str(plan.get("content", "")),
+                new_priority=merged_priority,
+                current_item_id=target_id,
+            )
+            self.repo.update_memory(
+                target_id,
+                content=str(plan["content"]),
+                priority=merged_priority,
+                confidence=merged_confidence,
+                pinned=normalized_pin,
+                note=merged_note,
+                status="active",
+                decayed_at=0,
+            )
+            await self._refresh_memory_embedding(target_id, str(plan["content"]))
+            merged += 1
+            archived_sources: list[int] = []
+            for sid in source_ids:
+                if self.repo.update_memory(sid, status="archived", pinned=False, note=str(plan.get("reason", "") or by_id[sid].get("note", ""))[:240]):
+                    archived += 1
+                    archived_sources.append(sid)
+                    consumed.add(sid)
+            consumed.add(target_id)
+            details.append({
+                "action": "merge",
+                "target_id": target_id,
+                "source_ids": archived_sources,
+                "target_before": memory_snapshot(target),
+                "source_before": [memory_snapshot(by_id[sid]) for sid in archived_sources],
+                "content": plan["content"],
+                "reason": plan.get("reason", ""),
+            })
+        result = {"merged": merged, "updated": updated, "archived": archived, "skipped": skipped, "details": details}
+        self.repo.log_event("forgetting_organizer", json.dumps(result, ensure_ascii=False)[:1800])
+        return result
+
+    def _pinned_limit(self, category: str = "") -> int:
+        cfg = self.config.get("memory_settings", {})
+        if category:
+            category_key = f"{category}_pinned_limit"
+            if category_key in cfg:
+                return int(cfg.get(category_key, 0))
+        return int(cfg.get("pinned_limit_per_category", 3))
 
     def _normalize_pinned_request(
         self,
@@ -264,7 +529,7 @@ class UserCompanionMemoryPlugin(Star):
     ) -> bool:
         if not requested:
             return False
-        limit = self._pinned_limit()
+        limit = self._pinned_limit(category)
         if limit <= 0:
             return requested
         current_pinned = self.repo.count_pinned(category=category or None)
@@ -290,7 +555,7 @@ class UserCompanionMemoryPlugin(Star):
         new_priority: float,
         current_item_id: int | None = None,
     ) -> bool:
-        pinned_items = self.repo.list_pinned(limit=self._pinned_limit(), category=category or None)
+        pinned_items = self.repo.list_pinned(limit=self._pinned_limit(category), category=category or None)
         if not pinned_items:
             return False
         lowest = pinned_items[0]
@@ -319,6 +584,7 @@ class UserCompanionMemoryPlugin(Star):
         category_limits = {
             "agreement": int(cfg.get("agreement_limit", 3)),
             "profile": int(cfg.get("profile_limit", 4)),
+            "slang": int(cfg.get("slang_limit", 4)),
             "event": int(cfg.get("event_limit", 2)),
             "fact": int(cfg.get("fact_limit", 3)),
             "knowledge_ref": int(cfg.get("knowledge_ref_limit", 2)),
@@ -326,10 +592,10 @@ class UserCompanionMemoryPlugin(Star):
         lines = [header, "以下信息只作为与你当前用户相关的低冲突参考；相关时自然使用，不必刻意复述。"]
         used_ids: list[int] = []
 
-        category_order = ("agreement", "profile", "event", "fact", "knowledge_ref")
+        category_order = ("agreement", "profile", "slang", "event", "fact", "knowledge_ref")
         labels = {
             "agreement": "约定", "profile": "用户信息", "event": "近期事件",
-            "fact": "相关事实", "knowledge_ref": "知识索引",
+            "fact": "相关事实", "knowledge_ref": "知识索引", "slang": str(cfg.get("slang_header", "黑话词典")).strip() or "黑话词典",
         }
         self._dbg(f"注入检索 query={user_text[:60]}", "basic")
         for category in category_order:
@@ -369,6 +635,48 @@ class UserCompanionMemoryPlugin(Star):
         if self.config.get("debug_settings", {}).get("log_injection_detail", False):
             self._dbg(f"注入全文预览:\n{text[:500]}", "basic")
         return ("\n\n" + text + "\n", used_ids)
+
+    async def import_slang_text(
+        self,
+        text: str,
+        *,
+        pinned: bool | None = None,
+        priority: float | None = None,
+        note_prefix: str = "",
+    ) -> dict[str, Any]:
+        if not bool(self.config.get("slang_settings", {}).get("enabled", True)):
+            return {"created": 0, "updated": 0, "items": [], "message": "黑话词典功能未启用"}
+        slang_cfg = self.config.get("slang_settings", {})
+        limit = int(slang_cfg.get("dedupe_limit", 300))
+        provider_id = str(slang_cfg.get("slang_model", "") or self.config.get("memory_settings", {}).get("summary_model", ""))
+        existing = self.repo.list_memories(category="slang", limit=limit, include_expired=True)
+        items = await self.analyzer.import_slang_memories(text, existing, provider_id=provider_id)
+        created = 0
+        updated = 0
+        saved_items: list[dict[str, Any]] = []
+        default_priority = float(slang_cfg.get("batch_import_default_priority", 0.82))
+        default_pinned = bool(slang_cfg.get("batch_import_default_pinned", False))
+        for item in items:
+            final_priority = default_priority if priority is None else priority
+            final_pinned = default_pinned if pinned is None else pinned
+            final_note = " ".join(x for x in [note_prefix.strip(), item.get("note", "").strip()] if x).strip()
+            status, item_id = await self._store_memory(
+                category="slang",
+                content=item["content"],
+                priority=final_priority if final_priority is not None else item["priority"],
+                confidence=item["confidence"],
+                pinned=final_pinned,
+                source="slang_import",
+                note=final_note,
+                ttl_days=0,
+            )
+            if status == "created":
+                created += 1
+            else:
+                updated += 1
+            saved_items.append({"id": item_id, "status": status, "content": item["content"], "note": final_note})
+        self.repo.log_event("slang_import", f"created={created} updated={updated} count={len(saved_items)}")
+        return {"created": created, "updated": updated, "items": saved_items, "message": f"导入完成 created={created} updated={updated}"}
 
     async def _search_memories(
         self,
@@ -446,9 +754,12 @@ class UserCompanionMemoryPlugin(Star):
         model_name = self._get_embedding_model_name().strip()
         if not self._embedding_provider or not model_name:
             return
-        active_items = self.repo.list_memories(limit=500, include_expired=False)
+        candidate_items = [
+            item for item in self.repo.list_memories(status="", limit=500, include_expired=False)
+            if item.get("status") != "archived"
+        ]
         refreshed = 0
-        for item in active_items:
+        for item in candidate_items:
             if categories and item.get("category") not in categories:
                 continue
             current_model = str(item.get("embedding_model", "") or "").strip()
@@ -497,6 +808,8 @@ class UserCompanionMemoryPlugin(Star):
             if item.get("pinned"):
                 score += 0.12
             score += float(item.get("priority", 0.0)) * 0.15
+            if item.get("status") == "stale":
+                score -= 0.03
             scored.append({**item, "score": round(score, 4)})
         scored.sort(key=lambda x: x["score"], reverse=True)
         threshold = float(self.config.get("memory_settings", {}).get("embedding_threshold", 0.35))
@@ -559,13 +872,12 @@ class UserCompanionMemoryPlugin(Star):
             name = "add_user_memory"
             description = "主动将与当前用户直接相关的短记忆写入分类记忆库。适合记录偏好、约定、近期事件、事实和知识存放位置。"
             parameters = {
-                "type": "object",
-                "properties": {
-                    "category": {"type": "string", "enum": ["profile", "agreement", "event", "fact", "knowledge_ref"]},
+                    "type": "object",
+                    "properties": {
+                    "category": {"type": "string", "enum": ["profile", "agreement", "slang", "event", "fact", "knowledge_ref"]},
                     "content": {"type": "string"},
                     "priority": {"type": "number"},
                     "pinned": {"type": "boolean"},
-                    "ttl_days": {"type": "integer"},
                     "note": {"type": "string"},
                 },
                 "required": ["category", "content"],
@@ -592,7 +904,7 @@ class UserCompanionMemoryPlugin(Star):
                     pinned=bool(kw.get("pinned", False)),
                     source="agent_tool",
                     note=str(kw.get("note", "")).strip()[:240],
-                    ttl_days=int(kw.get("ttl_days", 0)),
+                    ttl_days=0,
                 )
                 logger.info(f"[用户记忆] agent_tool {status} {category}#{item_id} {content}")
                 return f"{status}: {category}#{item_id}"
@@ -638,7 +950,7 @@ class UserCompanionMemoryPlugin(Star):
         yield event.plain_result(
             "\n".join(
                 [
-                    "用户分类记忆插件 v1.0.3",
+                    "用户分类记忆插件 v1.1.3",
                     f"运行分钟: {int((time.time() - self._started_at) / 60)}",
                     f"总条目: {stats['total']} | active={stats['active']} stale={stats['stale']} archived={stats['archived']}",
                     "分类: " + ", ".join(f"{k}={v}" for k, v in stats["by_category"].items()) if stats["by_category"] else "分类: 无",
@@ -654,10 +966,10 @@ class UserCompanionMemoryPlugin(Star):
             content=content,
             priority=0.7,
             confidence=0.9,
-            pinned=False,
-            source="manual_command",
-            note="",
-            ttl_days=0,
+              pinned=False,
+              source="manual_command",
+              note="",
+              ttl_days=0,
         )
         yield event.plain_result(f"{status}: {category}#{item_id}")
 

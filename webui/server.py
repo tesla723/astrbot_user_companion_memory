@@ -35,7 +35,7 @@ class WebUIServer:
         self._token_lock = asyncio.Lock()
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
-        self._app = FastAPI(title="User Companion Memory", version="1.0.0")
+        self._app = FastAPI(title="User Companion Memory", version="1.1.3")
         self._setup_routes()
 
     async def start(self) -> None:
@@ -95,9 +95,23 @@ class WebUIServer:
 
         @self._app.get("/api/dashboard")
         async def dashboard(token: str = Depends(self._auth())):
+            recent_event_memories = self.plugin.repo.list_memories(category="event", status="", limit=12, include_expired=True)
+            recent_memories = self.plugin.repo.list_memories(status="", limit=12, include_expired=True)
+            organizer_events = [
+                event for event in self.plugin.repo.list_events(limit=50)
+                if event.get("action") == "forgetting_organizer"
+            ][:12]
+            now = time.time()
+            for item in recent_event_memories:
+                item["forgetting"] = self.plugin.repo.explain_forgetting(item, self.plugin.config, now=now)
+            for item in recent_memories:
+                item["forgetting"] = self.plugin.repo.explain_forgetting(item, self.plugin.config, now=now)
             return {
                 "stats": self.plugin.repo.get_dashboard_stats(),
                 "events": self.plugin.repo.list_events(limit=12),
+                "organizer_events": organizer_events,
+                "recent_event_memories": recent_event_memories,
+                "recent_memories": recent_memories,
                 "uptime_minutes": int((time.time() - self.plugin._started_at) / 60),
             }
 
@@ -131,11 +145,24 @@ class WebUIServer:
                     pinned=bool(payload.get("pinned", False)),
                     source=str(payload.get("source", "webui")),
                     note=str(payload.get("note", "")).strip(),
-                    ttl_days=int(payload.get("ttl_days", 0)),
+                    ttl_days=0,
                 )
             except ValueError as e:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
             return {"status": status_text, "id": item_id}
+
+        @self._app.post("/api/slang/import")
+        async def import_slang(payload: dict[str, Any], token: str = Depends(self._auth())):
+            text = str(payload.get("text", "")).strip()
+            if not text:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="缺少 text")
+            result = await self.plugin.import_slang_text(
+                text,
+                pinned=payload.get("pinned"),
+                priority=float(payload["priority"]) if payload.get("priority") is not None else None,
+                note_prefix=str(payload.get("note_prefix", "")).strip(),
+            )
+            return result
 
         @self._app.put("/api/memories/{item_id}")
         async def update_memory(item_id: int, payload: dict[str, Any], token: str = Depends(self._auth())):
@@ -152,6 +179,7 @@ class WebUIServer:
                 new_priority=priority,
                 current_item_id=item_id,
             )
+            new_status = payload.get("status", current.get("status", "active"))
             ok = self.plugin.repo.update_memory(
                 item_id,
                 category=payload.get("category", current.get("category")),
@@ -160,8 +188,8 @@ class WebUIServer:
                 pinned=pinned,
                 confidence=float(payload.get("confidence", current.get("confidence", 0.9))),
                 note=payload.get("note", current.get("note", "")),
-                status=payload.get("status", current.get("status", "active")),
-                ttl_days=int(payload.get("ttl_days", current.get("ttl_days", 0))),
+                status=new_status,
+                decayed_at=0 if new_status == "active" else current.get("decayed_at", 0),
             )
             if not ok:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="无可更新字段")
@@ -187,6 +215,28 @@ class WebUIServer:
         async def get_config(token: str = Depends(self._auth())):
             return self.plugin.config
 
+        @self._app.get("/api/config/providers")
+        async def get_provider_options(token: str = Depends(self._auth())):
+            providers = []
+            try:
+                for provider in self.plugin.context.get_all_providers():
+                    cfg = getattr(provider, "provider_config", {}) or {}
+                    pid = str(cfg.get("id", "")).strip()
+                    if pid:
+                        providers.append({"id": pid, "kind": "chat"})
+            except Exception:
+                pass
+            try:
+                for provider in self.plugin.context.get_all_embedding_providers():
+                    cfg = getattr(provider, "provider_config", {}) or {}
+                    pid = str(cfg.get("id", "")).strip()
+                    if pid and not any(item["id"] == pid for item in providers):
+                        providers.append({"id": pid, "kind": "embedding"})
+            except Exception:
+                pass
+            providers.sort(key=lambda item: (item["kind"], item["id"]))
+            return {"items": providers}
+
         @self._app.get("/api/config/schema")
         async def get_schema(token: str = Depends(self._auth())):
             schema_path = Path(__file__).resolve().parent.parent / "_conf_schema.json"
@@ -198,7 +248,11 @@ class WebUIServer:
 
         @self._app.post("/api/forgetting/run")
         async def run_forgetting(token: str = Depends(self._auth())):
-            return self.plugin.repo.run_forgetting(self.plugin.config)
+            return await self.plugin.run_forgetting_now()
+
+        @self._app.post("/api/organizer/run")
+        async def run_organizer(token: str = Depends(self._auth())):
+            return await self.plugin.run_memory_organizer()
 
     def _extract_token(self, request: Request) -> str:
         auth = request.headers.get("Authorization", "")

@@ -5,24 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>User Companion Memory</title>
 <style>
-:root{--bg:#f5efe2;--panel:#fffaf1;--ink:#26211a;--muted:#7c6d5e;--line:#dccfbf;--accent:#bf6c3b;--accent2:#2f6c73;--danger:#b94d4d}
-*{box-sizing:border-box}body{margin:0;font:14px/1.5 "Segoe UI",sans-serif;background:linear-gradient(180deg,#efe4d0,#f7f2e9);color:var(--ink)}
-header{padding:18px 24px;background:rgba(255,250,241,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
-h1,h2,h3{margin:0}button,input,select,textarea{font:inherit}
-button{border:0;border-radius:10px;padding:8px 12px;cursor:pointer;background:var(--accent);color:#fff}
-button.secondary{background:#e7dccd;color:var(--ink)}button.danger{background:var(--danger)}
-input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
-main{max-width:1200px;margin:0 auto;padding:20px}
-.login{max-width:360px;margin:12vh auto;background:var(--panel);padding:24px;border:1px solid var(--line);border-radius:18px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.tabs button.active{background:var(--accent2)}
+:root{
+  --bg:#f4ecdf;
+  --panel:#fff9f1;
+  --panel2:#fffdf9;
+  --ink:#2a241c;
+  --muted:#7f7264;
+  --line:#dfd1c1;
+  --accent:#bf6c3b;
+  --accent2:#2f6c73;
+  --accent3:#6f63c7;
+  --danger:#bc5353;
+  --success:#4f8a5d;
+  --shadow:0 12px 28px rgba(75,58,37,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 "Segoe UI",sans-serif;background:linear-gradient(180deg,#efe4d3,#f9f5ee);color:var(--ink)}
+header{padding:18px 24px;background:rgba(255,249,241,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+h1,h2,h3,h4{margin:0}
+button,input,select,textarea{font:inherit}
+button{border:0;border-radius:12px;padding:9px 14px;cursor:pointer;background:var(--accent);color:#fff;transition:.18s ease}
+button:hover{transform:translateY(-1px);filter:brightness(1.03)}
+button.secondary{background:#e8ddd0;color:var(--ink)}
+button.ghost{background:transparent;color:var(--accent2);border:1px solid var(--line)}
+button.danger{background:var(--danger)}
+button.success{background:var(--success)}
+input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+textarea{resize:vertical}
+main{max-width:1320px;margin:0 auto;padding:22px}
+.login{max-width:380px;margin:12vh auto;background:var(--panel);padding:24px;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.tabs button.active{background:var(--accent2)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 10px 24px rgba(70,50,30,.06)}
-.muted{color:var(--muted)}.pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#efe6d9;color:var(--muted);font-size:12px}
-table{width:100%;border-collapse:collapse}.th,th{font-size:12px;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line)}td{padding:10px 8px;border-bottom:1px solid #eee4d7;vertical-align:top}
-.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.narrow{max-width:130px}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.toolbar>*{flex:0 0 auto}
-pre{white-space:pre-wrap;background:#f6efe4;padding:12px;border-radius:12px;border:1px solid var(--line)}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card.tight{padding:12px}
+.muted{color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;background:#efe6d9;color:var(--muted);font-size:12px}
+.pill.strong{background:#ece8ff;color:#5e51af}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.toolbar > *{flex:0 0 auto}
+.toolbar .grow{flex:1 1 220px}
+.row{display:flex;gap:10px;align-items:center}
+.row > *{flex:1}
+.narrow{max-width:140px}
 .hidden{display:none}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+.stat{font-size:30px;font-weight:700}
+pre{white-space:pre-wrap;background:#f7efe3;padding:12px;border-radius:14px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;color:var(--muted);text-align:left;padding:9px;border-bottom:1px solid var(--line)}
+td{padding:10px 9px;border-bottom:1px solid #eee3d5;vertical-align:top}
+.memory-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.memory-card{background:#fffdfa;border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 6px 18px rgba(62,49,31,.05)}
+.memory-card .memory-meta{font-size:12px;color:var(--muted);margin-top:8px}
+.group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+.group-col{background:#fffdfa;border:1px solid var(--line);border-radius:18px;padding:12px}
+.event-log{padding:10px 0;border-bottom:1px solid #eee3d5}
+.event-log:last-child{border-bottom:0}
+.quick-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.helper{font-size:12px;color:var(--muted)}
+.sticky-tools{position:sticky;top:82px;z-index:4}
+.collapsible{overflow:hidden;transition:max-height .24s ease, opacity .18s ease, margin-top .18s ease}
+.collapsible.collapsed{max-height:0;opacity:0;margin-top:0;pointer-events:none}
+.collapsible.expanded{max-height:240px;opacity:1;margin-top:8px}
+.status-line{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fffdf9;color:var(--muted);margin:8px 0}
+.status-line.busy{color:var(--accent2);border-color:#aac8cc}
+.status-line.error{color:var(--danger);border-color:#e3b1ad}
+.config-block{margin-top:14px;padding-top:14px;border-top:1px solid #eadfce}
+.config-block:first-of-type{margin-top:0;padding-top:0;border-top:0}
+.config-block h4{margin-bottom:10px;font-size:15px}
+.config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.config-field{background:#fffdfa;border:1px solid #eee2d3;border-radius:16px;padding:12px}
+.config-field.wide{grid-column:1 / -1}
+.config-section{display:grid;gap:14px}
 </style>
 </head>
 <body>
@@ -41,7 +96,10 @@ pre{white-space:pre-wrap;background:#f6efe4;padding:12px;border-radius:12px;bord
       <h1>用户分类记忆</h1>
       <div class="muted" id="uptime"></div>
     </div>
-    <button class="secondary" onclick="logout()">退出</button>
+    <div class="row" style="flex:0 0 auto">
+      <button class="ghost" onclick="refresh()">刷新</button>
+      <button class="secondary" onclick="logout()">退出</button>
+    </div>
   </header>
   <main>
     <div class="tabs">
@@ -58,29 +116,194 @@ pre{white-space:pre-wrap;background:#f6efe4;padding:12px;border-radius:12px;bord
 const API='';
 let token=localStorage.getItem('ucm_token')||'';
 let currentTab='dashboard';
+let memoryCache=[];
+let memoryFiltersCollapsed=localStorage.getItem('ucm_memory_filters_collapsed') !== 'false';
+let organizerHistoryExpanded=localStorage.getItem('ucm_organizer_history_expanded') === 'true';
+const CATEGORY_LIST=['profile','agreement','slang','event','fact','knowledge_ref'];
+let providerOptions=[];
+
 function headers(){return {'Authorization':'Bearer '+token,'Content-Type':'application/json'};}
-async function request(path,opts={}){const r=await fetch(API+path,{...opts,headers:{...headers(),...(opts.headers||{})}});if(r.status===401){logout();throw new Error('unauth')}return r.json()}
+async function request(path,opts={}){
+  const r=await fetch(API+path,{...opts,headers:{...headers(),...(opts.headers||{})}});
+  if(r.status===401){logout();throw new Error('unauth')}
+  if(!r.ok){
+    let msg=`HTTP ${r.status}`;
+    try{const d=await r.json(); msg=d.detail||msg;}catch{}
+    throw new Error(msg);
+  }
+  return r.json();
+}
 function toast(msg){window.alert(msg)}
 function boot(){if(token){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');refresh()}}
-async function login(){const pw=document.getElementById('password').value;const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});if(!r.ok){document.getElementById('loginError').textContent='密码不对';return;}const d=await r.json();token=d.token;localStorage.setItem('ucm_token',token);boot()}
+async function login(){
+  const pw=document.getElementById('password').value;
+  const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+  if(!r.ok){document.getElementById('loginError').textContent='密码不对';return;}
+  const d=await r.json();token=d.token;localStorage.setItem('ucm_token',token);boot();
+}
 function logout(){localStorage.removeItem('ucm_token');token='';location.reload()}
 function openTab(name){currentTab=name;for(const btn of document.querySelectorAll('.tabs button'))btn.classList.remove('active');document.getElementById('tab-'+name).classList.add('active');refresh()}
-async function refresh(){if(currentTab==='dashboard')renderDashboard();if(currentTab==='memories')renderMemories();if(currentTab==='injection')renderInjection();if(currentTab==='config')renderConfig()}
+async function refresh(){if(currentTab==='dashboard')await renderDashboard();if(currentTab==='memories')await renderMemories();if(currentTab==='injection')await renderInjection();if(currentTab==='config')await renderConfig()}
 function esc(s){return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
 function ts(v){if(!v)return'-';return new Date(v*1000).toLocaleString('zh-CN')}
-function daysText(v,label){
-  if(v===null||v===undefined)return `${label}: -`;
-  return `${label}: ${v>=0?`还剩 ${v} 天`:`已过 ${Math.abs(v)} 天`}`;
-}
+function daysText(v,label){if(v===null||v===undefined)return `${label}: -`;return `${label}: ${v>=0?`还剩 ${v} 天`:`已过 ${Math.abs(v)} 天`}`;}
 function forgettingText(item){
   const f=item.forgetting||{};
   if(f.protected)return '遗忘: 置顶保护';
   const parts=[];
-  if(f.stale_after_days>0)parts.push(daysText(f.stale_in_days,'stale'));
-  if(f.archive_after_days>0)parts.push(daysText(f.archive_in_days,'archive'));
-  if((item.ttl_days||0)>0 || (f.fallback_ttl_days||0)>0)parts.push(daysText(f.ttl_in_days,'TTL'));
-  if(f.expires_at)parts.push(daysText(f.expires_in_days,'expires'));
-  return parts.length?('遗忘: '+parts.join(' | ')):'遗忘: 不自动处理';
+  if(f.stale_after_days>0)parts.push(daysText(f.stale_in_days,'开始衰减'));
+  if(f.next_decay_at)parts.push(daysText(f.next_decay_in_days,'下次衰减'));
+  if(f.projected_archive_in_days!==null&&f.projected_archive_in_days!==undefined)parts.push(daysText(f.projected_archive_in_days,'预计归档'));
+  if(f.decay_mode)parts.push(`方式: ${f.decay_mode} ${f.decay_value}/每${f.decay_interval_hours}h`);
+  return parts.length?('衰减: '+parts.join(' | ')):'衰减: 不自动处理';
+}
+function categoryOptions(selected=''){
+  return `<option value="">全部分类</option>` + CATEGORY_LIST.map(c=>`<option value="${c}" ${selected===c?'selected':''}>${c}</option>`).join('');
+}
+function memoryBadge(item){
+  return `<span class="pill ${item.pinned?'strong':''}">${item.category}${item.pinned?' · pinned':''}</span>`;
+}
+function toggleMemoryFilters(forceValue=null){
+  memoryFiltersCollapsed = forceValue===null ? !memoryFiltersCollapsed : !!forceValue;
+  localStorage.setItem('ucm_memory_filters_collapsed', String(memoryFiltersCollapsed));
+  const panel=document.getElementById('memoryFiltersPanel');
+  const btn=document.getElementById('memoryFiltersToggle');
+  if(panel){
+    panel.classList.toggle('collapsed', memoryFiltersCollapsed);
+    panel.classList.toggle('expanded', !memoryFiltersCollapsed);
+  }
+  if(btn){
+    btn.textContent = memoryFiltersCollapsed ? '展开筛选' : '收起筛选';
+  }
+}
+function summarizeOrganizerDetail(detail){
+  try{
+    const data=JSON.parse(detail||'{}');
+    return organizerSummaryLine(data);
+  }catch{
+    return detail||'无详情';
+  }
+}
+function organizerSummaryLine(data){
+  const parts=[];
+  if(data.merged!==undefined)parts.push(`合并 ${data.merged}`);
+  if(data.updated!==undefined)parts.push(`更新 ${data.updated}`);
+  if(data.archived!==undefined)parts.push(`归档 ${data.archived}`);
+  if(data.skipped!==undefined)parts.push(`跳过 ${data.skipped}`);
+  return parts.join(' / ') || '无动作';
+}
+function formatOrganizerResult(payload){
+  const organizer=payload.organizer||payload;
+  const lines=[`整理结果: ${organizerSummaryLine(organizer)}`];
+  const forgetting=payload.forgetting;
+  if(forgetting){
+    lines.push(`遗忘扫描: stale ${forgetting.stale||0} / decayed ${forgetting.decayed||0} / archived ${forgetting.archived||0}`);
+  }
+  const details=organizer.details||[];
+  if(!details.length){
+    lines.push('明细: 无具体动作');
+    return lines.join('\n');
+  }
+  lines.push('明细:');
+  details.forEach((x,idx)=>{
+    const action=x.action||'-';
+    const target=x.target_id?`#${x.target_id}`:'-';
+    const sources=(x.source_ids&&x.source_ids.length)?` <= #${x.source_ids.join(', #')}`:'';
+    const reason=x.reason?` | ${x.reason}`:'';
+    const content=x.content?` | ${String(x.content).slice(0,120)}`:'';
+    lines.push(`${idx+1}. ${action} ${target}${sources}${reason}${content}`);
+    if(x.target_before){
+      lines.push(`   原目标: #${x.target_before.id} [${x.target_before.category}] ${x.target_before.content} (p=${x.target_before.priority}, ${x.target_before.status})`);
+    }
+    if(x.source_before&&x.source_before.length){
+      x.source_before.forEach(src=>{
+        lines.push(`   来源: #${src.id} [${src.category}] ${src.content} (p=${src.priority}, ${src.status})`);
+      });
+    }
+  });
+  return lines.join('\n');
+}
+function organizerDetails(detail){
+  try{
+    const data=JSON.parse(detail||'{}');
+    const items=data.details||[];
+    if(!items.length)return '<div class="helper">没有具体动作</div>';
+    return items.slice(0,5).map(x=>{
+      const ids=x.source_ids?` <= #${x.source_ids.join(', #')}`:'';
+      return `<div class="helper">${esc(x.action)} #${esc(String(x.target_id||''))}${esc(ids)} ${x.reason?`· ${esc(x.reason)}`:''}</div>`;
+    }).join('');
+  }catch{
+    return '';
+  }
+}
+function toggleOrganizerHistory(){
+  organizerHistoryExpanded=!organizerHistoryExpanded;
+  localStorage.setItem('ucm_organizer_history_expanded', String(organizerHistoryExpanded));
+  renderDashboard();
+}
+function renderOrganizerHistory(events){
+  if(!events.length)return '<div class="muted">最近还没有 forgetting_organizer 合并结果</div>';
+  const shown=organizerHistoryExpanded?events:events.slice(0,2);
+  const rows=shown.map(e=>`<div class="event-log"><div><strong>${esc(summarizeOrganizerDetail(e.detail))}</strong></div>${organizerDetails(e.detail)}<div class="helper">${ts(e.created_at)}</div></div>`).join('');
+  const toggle=events.length>2?`<button class="ghost narrow" onclick="toggleOrganizerHistory()">${organizerHistoryExpanded?'收起历史':'展开历史'}</button>`:'';
+  return `${rows}${toggle?`<div class="quick-actions">${toggle}<span class="helper">共 ${events.length} 条历史</span></div>`:''}`;
+}
+function renderMemoryCompact(item){
+  return `<div class="memory-card">
+    <div class="section-head">
+      ${memoryBadge(item)}
+      <div class="helper">#${item.id}</div>
+    </div>
+    <div>${esc(item.content)}</div>
+    ${item.note?`<div class="muted" style="margin-top:6px">${esc(item.note)}</div>`:''}
+    <div class="memory-meta">priority=${item.priority} | confidence=${item.confidence} | status=${item.status}</div>
+    <div class="memory-meta">${esc(forgettingText(item))}</div>
+    <div class="quick-actions">
+      <button class="secondary" onclick='editMemoryById(${item.id})'>编辑</button>
+      <button class="danger" onclick='archiveMemory(${item.id})'>归档</button>
+    </div>
+  </div>`;
+}
+function sortMemories(items, sortBy){
+  const list=[...items];
+  list.sort((a,b)=>{
+    if(sortBy==='updated_desc') return (b.updated_at||0)-(a.updated_at||0);
+    if(sortBy==='updated_asc') return (a.updated_at||0)-(b.updated_at||0);
+    if(sortBy==='created_desc') return (b.created_at||0)-(a.created_at||0);
+    if(sortBy==='created_asc') return (a.created_at||0)-(b.created_at||0);
+    if(sortBy==='priority_desc') return (b.priority||0)-(a.priority||0);
+    if(sortBy==='priority_asc') return (a.priority||0)-(b.priority||0);
+    if(sortBy==='confidence_desc') return (b.confidence||0)-(a.confidence||0);
+    if(sortBy==='confidence_asc') return (a.confidence||0)-(b.confidence||0);
+    if(sortBy==='used_desc') return (b.last_used_at||0)-(a.last_used_at||0);
+    if(sortBy==='used_count_desc') return (b.use_count||0)-(a.use_count||0);
+    if(sortBy==='category_asc') return String(a.category||'').localeCompare(String(b.category||''),'zh-CN');
+    if(sortBy==='source_asc') return String(a.source||'').localeCompare(String(b.source||''),'zh-CN');
+    return (b.updated_at||0)-(a.updated_at||0);
+  });
+  return list;
+}
+function applyMemoryFilters(items){
+  const q=(document.getElementById('memoryQuery')?.value||'').trim().toLowerCase();
+  const category=document.getElementById('memoryCategory')?.value||'';
+  const status=document.getElementById('memoryStatus')?.value||'active';
+  const pinned=document.getElementById('memoryPinned')?.value||'';
+  const source=(document.getElementById('memorySource')?.value||'').trim().toLowerCase();
+  const minPriority=parseFloat(document.getElementById('memoryMinPriority')?.value||'0');
+  let filtered=items.filter(item=>{
+    if(category && item.category!==category) return false;
+    if(status && item.status!==status) return false;
+    if(pinned==='only' && !item.pinned) return false;
+    if(pinned==='exclude' && item.pinned) return false;
+    if(source && !(String(item.source||'').toLowerCase().includes(source))) return false;
+    if((item.priority||0)<minPriority) return false;
+    if(q){
+      const hay=`${item.content||''} ${item.note||''} ${item.category||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  return sortMemories(filtered, document.getElementById('memorySort')?.value||'updated_desc');
 }
 
 async function renderDashboard(){
@@ -88,103 +311,264 @@ async function renderDashboard(){
   document.getElementById('uptime').textContent='运行 '+d.uptime_minutes+' 分钟';
   const stats=d.stats||{};
   const cats=stats.by_category||{};
+  const organizer=d.organizer_events||[];
+  const eventMemories=(d.recent_event_memories||[]).slice(0,8);
+  const recentMemories=(d.recent_memories||[]).slice(0,6);
   document.getElementById('view').innerHTML=`
     <div class="grid">
-      <div class="card"><h3>总条目</h3><div style="font-size:28px">${stats.total||0}</div></div>
-      <div class="card"><h3>Active</h3><div style="font-size:28px">${stats.active||0}</div></div>
-      <div class="card"><h3>Stale</h3><div style="font-size:28px">${stats.stale||0}</div></div>
-      <div class="card"><h3>Archived</h3><div style="font-size:28px">${stats.archived||0}</div></div>
+      <div class="card"><h3>总条目</h3><div class="stat">${stats.total||0}</div></div>
+      <div class="card"><h3>Active</h3><div class="stat">${stats.active||0}</div></div>
+      <div class="card"><h3>Stale</h3><div class="stat">${stats.stale||0}</div></div>
+      <div class="card"><h3>Archived</h3><div class="stat">${stats.archived||0}</div></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="section-head"><h3>分类分布</h3><button class="ghost narrow" onclick="openTab('memories')">进入记忆库</button></div>
+        <div class="toolbar">${Object.entries(cats).map(([k,v])=>`<span class="pill">${k}: ${v}</span>`).join('')||'<span class="muted">暂无</span>'}</div>
+        </div>
+        <div class="card">
+          <div class="section-head">
+            <h3>遗忘整理结果</h3>
+            <div class="quick-actions"><button id="runOrganizerBtn" class="secondary" onclick="runOrganizer()">手动整理</button><button id="runForgettingBtn" class="ghost" onclick="runForgetting()">整理并遗忘</button></div>
+          </div>
+          <div id="organizerStatus" class="status-line hidden"></div>
+          <pre id="organizerResult" class="hidden"></pre>
+          ${renderOrganizerHistory(organizer)}
+        </div>
+      </div>
+    <div class="grid">
+      <div class="card">
+        <div class="section-head"><h3>最近事件记忆</h3><button class="ghost narrow" onclick="openFilteredMemories('event')">查看全部</button></div>
+        ${eventMemories.length?`<div class="memory-card-grid">${eventMemories.map(renderMemoryCompact).join('')}</div>`:'<div class="muted">暂无 event 记忆</div>'}
+      </div>
+      <div class="card">
+        <div class="section-head"><h3>最近更新记忆</h3><button class="ghost narrow" onclick="openTab('memories')">更多视图</button></div>
+        ${recentMemories.length?`<div class="memory-card-grid">${recentMemories.map(renderMemoryCompact).join('')}</div>`:'<div class="muted">暂无记忆</div>'}
+      </div>
     </div>
     <div class="card">
-      <h3>分类分布</h3>
-      <div class="toolbar">${Object.entries(cats).map(([k,v])=>`<span class="pill">${k}: ${v}</span>`).join('')||'<span class="muted">暂无</span>'}</div>
-    </div>
-    <div class="card">
-      <div class="row"><h3>最近事件</h3><div></div><button class="secondary narrow" onclick="runForgetting()">执行遗忘</button></div>
+      <div class="section-head"><h3>最近系统事件</h3></div>
       <table><thead><tr><th>ID</th><th>动作</th><th>细节</th><th>时间</th></tr></thead>
       <tbody>${(d.events||[]).map(e=>`<tr><td>${e.id}</td><td>${esc(e.action)}</td><td>${esc(e.detail)}</td><td>${ts(e.created_at)}</td></tr>`).join('')}</tbody></table>
     </div>`;
 }
 
-async function runForgetting(){const d=await request('/api/forgetting/run',{method:'POST'});alert('遗忘完成: '+JSON.stringify(d))}
+async function runForgetting(){
+  await runOrganizerAction('/api/forgetting/run','正在整理并执行遗忘扫描...');
+}
+async function runOrganizer(){
+  await runOrganizerAction('/api/organizer/run','正在手动整理记忆...');
+}
+async function runOrganizerAction(path, message){
+  const status=document.getElementById('organizerStatus');
+  const out=document.getElementById('organizerResult');
+  const buttons=[document.getElementById('runOrganizerBtn'),document.getElementById('runForgettingBtn')].filter(Boolean);
+  buttons.forEach(btn=>btn.disabled=true);
+  if(status){status.className='status-line busy';status.textContent=message;}
+  if(out){out.classList.remove('hidden');out.textContent='等待后端返回结果...';}
+  try{
+    const d=await request(path,{method:'POST'});
+    await renderDashboard();
+    const nextStatus=document.getElementById('organizerStatus');
+    const nextOut=document.getElementById('organizerResult');
+    if(nextStatus){nextStatus.className='status-line';nextStatus.textContent='执行完成';}
+    if(nextOut){nextOut.classList.remove('hidden');nextOut.textContent=formatOrganizerResult(d);}
+  }catch(e){
+    if(status){status.className='status-line error';status.textContent='执行失败: '+e.message;}
+    if(out){out.classList.remove('hidden');out.textContent='执行失败: '+e.message;}
+  }finally{
+    document.querySelectorAll('#runOrganizerBtn,#runForgettingBtn').forEach(btn=>btn.disabled=false);
+  }
+}
 
 async function renderMemories(){
-  const category=document.getElementById('memoryCategory')?.value||'';
-  const status=document.getElementById('memoryStatus')?.value||'active';
-  const d=await request('/api/memories?category='+encodeURIComponent(category)+'&status_filter='+encodeURIComponent(status));
+  const d=await request('/api/memories?status_filter=');
+  memoryCache=d.items||[];
   document.getElementById('view').innerHTML=`
-    <div class="card">
-      <div class="toolbar">
-        <select id="memoryCategory" onchange="renderMemories()">
-          <option value="">全部分类</option>
-          <option value="profile" ${category==='profile'?'selected':''}>profile</option>
-          <option value="agreement" ${category==='agreement'?'selected':''}>agreement</option>
-          <option value="event" ${category==='event'?'selected':''}>event</option>
-          <option value="fact" ${category==='fact'?'selected':''}>fact</option>
-          <option value="knowledge_ref" ${category==='knowledge_ref'?'selected':''}>knowledge_ref</option>
-        </select>
-        <select id="memoryStatus" onchange="renderMemories()">
-          <option value="">全部状态</option>
-          <option value="active" ${status==='active'?'selected':''}>active</option>
-          <option value="stale" ${status==='stale'?'selected':''}>stale</option>
-          <option value="archived" ${status==='archived'?'selected':''}>archived</option>
-        </select>
-        <button onclick="showAddForm()">新增记忆</button>
+    <div class="card sticky-tools">
+      <div class="section-head"><h3>记忆库</h3><div class="quick-actions"><button onclick="showAddForm()">新增记忆</button><button class="secondary" onclick="showSlangImportForm()">批量导入黑话</button><button class="ghost" id="memoryFiltersToggle" onclick="toggleMemoryFilters()">${memoryFiltersCollapsed?'展开筛选':'收起筛选'}</button><button class="ghost" onclick="clearMemoryFilters()">清空筛选</button></div></div>
+      <div id="memoryFiltersPanel" class="collapsible ${memoryFiltersCollapsed?'collapsed':'expanded'}">
+        <div class="toolbar">
+          <input class="grow" id="memoryQuery" placeholder="搜索内容 / 备注 / 分类" oninput="renderMemoryResults()">
+          <select id="memoryCategory" onchange="renderMemoryResults()">${categoryOptions()}</select>
+          <select id="memoryStatus" onchange="renderMemoryResults()">
+            <option value="active" selected>active</option>
+            <option value="">全部状态</option>
+            <option value="stale">stale</option>
+            <option value="archived">archived</option>
+          </select>
+          <select id="memoryPinned" onchange="renderMemoryResults()">
+            <option value="">置顶全部</option>
+            <option value="only">只看置顶</option>
+            <option value="exclude">排除置顶</option>
+          </select>
+          <input class="narrow" id="memorySource" placeholder="source 筛选" oninput="renderMemoryResults()">
+          <input class="narrow" id="memoryMinPriority" type="number" min="0" max="1" step="0.05" value="0" oninput="renderMemoryResults()">
+          <select id="memorySort" onchange="renderMemoryResults()">
+            <option value="updated_desc">最近更新</option>
+            <option value="created_desc">最近创建</option>
+            <option value="priority_desc">优先级降序</option>
+            <option value="priority_asc">优先级升序</option>
+            <option value="confidence_desc">置信度降序</option>
+            <option value="confidence_asc">置信度升序</option>
+            <option value="used_desc">最近使用</option>
+            <option value="used_count_desc">使用次数最多</option>
+            <option value="category_asc">按分类排序</option>
+            <option value="source_asc">按来源排序</option>
+            <option value="updated_asc">最早更新</option>
+            <option value="created_asc">最早创建</option>
+          </select>
+          <select id="memoryView" onchange="renderMemoryResults()">
+            <option value="table">表格视图</option>
+            <option value="cards">卡片视图</option>
+            <option value="grouped">分类视图</option>
+          </select>
+        </div>
       </div>
-      <div id="memoryForm" class="hidden card" style="margin-top:10px"></div>
-      <table>
-        <thead><tr><th>ID</th><th>分类</th><th>内容</th><th>属性</th><th>时间</th><th>操作</th></tr></thead>
-        <tbody>${(d.items||[]).map(item=>`
-          <tr>
-            <td>${item.id}</td>
-            <td><span class="pill">${item.category}</span></td>
-            <td>${esc(item.content)}${item.note?`<div class="muted">${esc(item.note)}</div>`:''}</td>
-            <td class="muted">priority=${item.priority} | pinned=${item.pinned?'Y':'N'} | ttl=${item.ttl_days||0} | status=${item.status}<br>${esc(forgettingText(item))}</td>
-            <td class="muted">更新: ${ts(item.updated_at)}<br>使用: ${ts(item.last_used_at)}<br>活动基准: ${ts(item.forgetting?.activity_at)}</td>
-            <td><button class="secondary" onclick='editMemory(${JSON.stringify(item)})'>编辑</button> <button class="danger" onclick="archiveMemory(${item.id})">归档</button></td>
-          </tr>`).join('')}</tbody>
-      </table>
-    </div>`;
+      <div id="memorySummary" class="helper"></div>
+    </div>
+    <div id="memoryForm" class="hidden card"></div>
+    <div id="slangImportForm" class="hidden card"></div>
+    <div id="memoryResults"></div>`;
+  renderMemoryResults();
+}
+
+function clearMemoryFilters(){
+  const ids=['memoryQuery','memoryCategory','memoryPinned','memorySource','memoryMinPriority','memorySort','memoryView'];
+  if(document.getElementById('memoryQuery')) document.getElementById('memoryQuery').value='';
+  if(document.getElementById('memoryCategory')) document.getElementById('memoryCategory').value='';
+  if(document.getElementById('memoryStatus')) document.getElementById('memoryStatus').value='active';
+  if(document.getElementById('memoryPinned')) document.getElementById('memoryPinned').value='';
+  if(document.getElementById('memorySource')) document.getElementById('memorySource').value='';
+  if(document.getElementById('memoryMinPriority')) document.getElementById('memoryMinPriority').value='0';
+  if(document.getElementById('memorySort')) document.getElementById('memorySort').value='updated_desc';
+  if(document.getElementById('memoryView')) document.getElementById('memoryView').value='table';
+  renderMemoryResults();
+}
+
+function renderMemoryResults(){
+  const items=applyMemoryFilters(memoryCache);
+  const view=document.getElementById('memoryView')?.value||'table';
+  document.getElementById('memorySummary').textContent=`当前结果 ${items.length} 条 / 总计 ${memoryCache.length} 条`;
+  const host=document.getElementById('memoryResults');
+  if(view==='cards'){
+    host.innerHTML=`<div class="memory-card-grid">${items.map(renderMemoryCompact).join('')||'<div class="muted">没有匹配结果</div>'}</div>`;
+    return;
+  }
+  if(view==='grouped'){
+    const groups={};
+    CATEGORY_LIST.forEach(c=>groups[c]=[]);
+    items.forEach(item=>{(groups[item.category] ||= []).push(item);});
+    host.innerHTML=`<div class="group-grid">${CATEGORY_LIST.map(cat=>`<div class="group-col"><div class="section-head"><h4>${cat}</h4><span class="pill">${groups[cat].length}</span></div>${groups[cat].length?groups[cat].map(renderMemoryCompact).join(''):'<div class="muted">暂无</div>'}</div>`).join('')}</div>`;
+    return;
+  }
+  host.innerHTML=`<div class="card">
+    <table>
+      <thead><tr><th>ID</th><th>分类</th><th>内容</th><th>属性</th><th>时间</th><th>操作</th></tr></thead>
+      <tbody>${items.map(item=>`
+        <tr>
+          <td>${item.id}</td>
+          <td>${memoryBadge(item)}</td>
+          <td>${esc(item.content)}${item.note?`<div class="muted">${esc(item.note)}</div>`:''}<div class="helper">source=${esc(item.source||'-')}</div></td>
+          <td class="muted">priority=${item.priority} | confidence=${item.confidence} | status=${item.status}<br>${esc(forgettingText(item))}</td>
+          <td class="muted">更新: ${ts(item.updated_at)}<br>使用: ${ts(item.last_used_at)}<br>活动基准: ${ts(item.forgetting?.activity_at)}</td>
+          <td><div class="quick-actions"><button class="secondary" onclick='editMemoryById(${item.id})'>编辑</button><button class="danger" onclick="archiveMemory(${item.id})">归档</button></div></td>
+        </tr>`).join('')}</tbody>
+    </table>
+  </div>`;
 }
 
 function showAddForm(item=null){
   const host=document.getElementById('memoryForm'); host.classList.remove('hidden');
   host.innerHTML=`
-    <h3>${item?'编辑':'新增'}记忆</h3>
+    <div class="section-head"><h3>${item?'编辑':'新增'}记忆</h3><button class="ghost narrow" onclick="document.getElementById('memoryForm').classList.add('hidden')">关闭</button></div>
     <div class="row">
-      <div><label>分类</label><select id="f_category"><option>profile</option><option>agreement</option><option>event</option><option>fact</option><option>knowledge_ref</option></select></div>
+      <div><label>分类</label><select id="f_category">${CATEGORY_LIST.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
       <div><label>priority</label><input id="f_priority" type="number" min="0" max="1" step="0.05" value="${item?item.priority:0.7}"></div>
-      <div><label>ttl_days</label><input id="f_ttl" type="number" min="0" step="1" value="${item?item.ttl_days:0}"></div>
+      <div><label>confidence</label><input id="f_confidence" type="number" min="0" max="1" step="0.05" value="${item?item.confidence:0.9}"></div>
     </div>
     <div class="row">
       <div><label>pinned</label><select id="f_pinned"><option value="false">false</option><option value="true">true</option></select></div>
-      <div><label>confidence</label><input id="f_confidence" type="number" min="0" max="1" step="0.05" value="${item?item.confidence:0.9}"></div>
       <div><label>status</label><select id="f_status"><option>active</option><option>stale</option><option>archived</option></select></div>
     </div>
     <div><label>内容</label><textarea id="f_content" rows="3">${item?esc(item.content):''}</textarea></div>
     <div><label>备注</label><input id="f_note" value="${item?esc(item.note||''):''}"></div>
-    <div style="height:10px"></div>
-    <button onclick="${item?`saveEdit(${item.id})`:'saveAdd()'}">保存</button>
-    <button class="secondary" onclick="document.getElementById('memoryForm').classList.add('hidden')">取消</button>`;
+    <div class="quick-actions" style="margin-top:12px">
+      <button onclick="${item?`saveEdit(${item.id})`:'saveAdd()'}">保存</button>
+      ${item?`<button class="danger" onclick="archiveMemory(${item.id})">归档</button>`:''}
+    </div>`;
   document.getElementById('f_category').value=item?item.category:'profile';
   document.getElementById('f_pinned').value=item&&item.pinned?'true':'false';
   document.getElementById('f_status').value=item?item.status:'active';
+  host.scrollIntoView({behavior:'smooth', block:'start'});
 }
-function editMemory(item){showAddForm(item)}
+function showSlangImportForm(){
+  const host=document.getElementById('slangImportForm'); host.classList.remove('hidden');
+  host.innerHTML=`
+    <div class="section-head"><h3>批量导入黑话</h3><button class="ghost narrow" onclick="document.getElementById('slangImportForm').classList.add('hidden')">关闭</button></div>
+    <div class="helper">粘贴长文本、聊天记录、词表说明都可以。系统会自动提取成多条 slang 记忆。</div>
+    <div class="row">
+      <div><label>默认 priority</label><input id="slang_import_priority" type="number" min="0" max="1" step="0.05" value="0.82"></div>
+      <div><label>默认 pinned</label><select id="slang_import_pinned"><option value="">按配置默认</option><option value="true">true</option><option value="false">false</option></select></div>
+    </div>
+    <div><label>导入备注前缀</label><input id="slang_import_note_prefix" placeholder="例如：群友黑话 / 2026-05 收集"></div>
+    <div><label>原始文本</label><textarea id="slang_import_text" rows="12" placeholder="把长文本贴在这里"></textarea></div>
+    <div class="quick-actions" style="margin-top:12px">
+      <button onclick="runSlangImport()">开始导入</button>
+    </div>
+    <pre id="slang_import_result" class="hidden"></pre>`;
+  host.scrollIntoView({behavior:'smooth', block:'start'});
+}
+async function runSlangImport(){
+  const text=document.getElementById('slang_import_text')?.value||'';
+  const out=document.getElementById('slang_import_result');
+  if(!text.trim()){toast('先贴一点黑话文本');return;}
+  if(out){out.classList.remove('hidden');out.textContent='正在导入...';}
+  const pinnedRaw=document.getElementById('slang_import_pinned')?.value||'';
+  const payload={
+    text,
+    note_prefix:document.getElementById('slang_import_note_prefix')?.value||'',
+    priority:parseFloat(document.getElementById('slang_import_priority')?.value||'0.82')
+  };
+  if(pinnedRaw==='true') payload.pinned=true;
+  if(pinnedRaw==='false') payload.pinned=false;
+  try{
+    const res=await request('/api/slang/import',{method:'POST',body:JSON.stringify(payload)});
+    if(out){out.classList.remove('hidden');out.textContent=JSON.stringify(res,null,2);}
+    toast(`黑话导入完成：created ${res.created||0} / updated ${res.updated||0}`);
+    await renderMemories();
+  }catch(e){
+    if(out){out.classList.remove('hidden');out.textContent='导入失败: '+e.message;}
+    toast('导入失败: '+e.message);
+  }
+}
+function editMemoryById(id){
+  const item=(memoryCache||[]).find(x=>Number(x.id)===Number(id));
+  if(!item){toast('没找到这条记忆');return;}
+  showAddForm(item);
+}
+function openFilteredMemories(category){
+  openTab('memories');
+  setTimeout(()=>{
+    const sel=document.getElementById('memoryCategory');
+    if(sel){sel.value=category; renderMemoryResults();}
+  },50);
+}
 async function saveAdd(){
   const payload=readForm();
   await request('/api/memories',{method:'POST',body:JSON.stringify(payload)});
-  renderMemories();
+  toast('已新增记忆');
+  await renderMemories();
 }
 async function saveEdit(id){
   const payload=readForm();
   await request('/api/memories/'+id,{method:'PUT',body:JSON.stringify(payload)});
-  renderMemories();
+  toast('已更新记忆 #'+id);
+  await renderMemories();
 }
 function readForm(){return{
   category:document.getElementById('f_category').value,
   priority:parseFloat(document.getElementById('f_priority').value||'0.7'),
-  ttl_days:parseInt(document.getElementById('f_ttl').value||'0',10),
   pinned:document.getElementById('f_pinned').value==='true',
   confidence:parseFloat(document.getElementById('f_confidence').value||'0.9'),
   status:document.getElementById('f_status').value,
@@ -195,7 +579,7 @@ async function archiveMemory(id){
   const res=await request('/api/memories/'+id,{method:'DELETE'});
   if(res.ok){
     toast('已归档 #'+id);
-    renderMemories();
+    if(currentTab==='dashboard') await renderDashboard(); else await renderMemories();
   }else{
     toast('归档失败 #'+id);
   }
@@ -204,7 +588,7 @@ async function archiveMemory(id){
 async function renderInjection(){
   document.getElementById('view').innerHTML=`
     <div class="card">
-      <h3>注入预览</h3>
+      <div class="section-head"><h3>注入预览</h3></div>
       <p class="muted">输入一条用户消息，看看这一回合会注入哪些分类记忆。</p>
       <div class="row"><input id="previewQuery" placeholder="例如：我明天想出去拍照"><button class="narrow" onclick="doPreview()">预览</button></div>
       <div style="height:12px"></div>
@@ -218,21 +602,165 @@ async function doPreview(){
 }
 
 async function renderConfig(){
-  const [cfg,schema]=await Promise.all([request('/api/config'),request('/api/config/schema')]);
-  const sections=['memory_settings','injection_settings','forgetting_settings','tool_settings','prompt_settings','debug_settings','webui_settings'];
+  const [cfg,schema,providers]=await Promise.all([
+    request('/api/config'),
+    request('/api/config/schema'),
+    request('/api/config/providers').catch(()=>({items:[]}))
+  ]);
+  providerOptions=providers.items||[];
+  const sections=['prompt_settings','memory_settings','slang_settings','injection_settings','forgetting_settings','tool_settings','debug_settings','webui_settings'];
   document.getElementById('view').innerHTML=`
-    <div class="card"><div class="row"><h3>配置</h3><div></div><button onclick="saveConfig()">保存配置</button></div></div>
-    ${sections.map(sec=>renderSection(sec,cfg[sec]||{},(schema[sec]||{}).items||{})).join('')}`;
+      <div class="card">
+        <div class="section-head"><h3>配置</h3><button onclick="saveConfig()">保存配置</button></div>
+        <div class="helper">这里显示的是当前实际生效值。字段说明里的 default 只是 schema 默认值，不一定等于你现在正在用的值。</div>
+      </div>
+      ${sections.map(sec=>renderSection(sec,cfg[sec]||{},(schema[sec]||{}).items||{})).join('')}`;
+}
+function getFieldValue(sectionName,key,meta,values){
+  const rawVal=values[key];
+  return (sectionName==='prompt_settings' && String(rawVal??'').trim()==='') ? (meta.default??'') : (rawVal??meta.default??'');
+}
+function renderField(sectionName,key,meta,values){
+  const id='cfg_'+sectionName+'_'+key;
+  const val=getFieldValue(sectionName,key,meta,values);
+  const fieldNames={
+    round_summary_prompt:'轮数总结提取 Prompt',
+    slang_import_prompt:'黑话导入 Prompt',
+    forgetting_organizer_prompt:'遗忘整理 Prompt',
+  };
+  const label=fieldNames[key]||key;
+  const wrapperClass=(String(val).length>120||key.includes('prompt'))?'config-field wide':'config-field';
+  const helperText = `${esc(meta.description||'')}${meta.default!==undefined ? `<br><span class="helper">default: ${esc(String(meta.default))}</span>` : ''}`;
+  if(meta._special==='select_provider'){
+    const current=String(val||'');
+    const merged=[...(providerOptions||[])];
+    if(current && !merged.some(p=>String(p.id)===current)){
+      merged.unshift({id: current, kind: 'current'});
+    }
+    const items=merged.map(p=>`<option value="${p.id}" ${current===String(p.id)?'selected':''}>${esc(p.id)} [${esc(p.kind)}]</option>`).join('');
+    return `<div class="${wrapperClass}"><label>${label}</label><select data-sec="${sectionName}" data-key="${key}" data-type="string" id="${id}"><option value="">默认/留空</option>${items}</select><div class="helper">${helperText}</div></div>`;
+  }
+  if(meta.type==='bool') return `<div class="${wrapperClass}"><label>${label}</label><select data-sec="${sectionName}" data-key="${key}" data-type="bool" id="${id}"><option value="true" ${val===true?'selected':''}>true</option><option value="false" ${val===false?'selected':''}>false</option></select><div class="helper">${helperText}</div></div>`;
+  if(meta.options) return `<div class="${wrapperClass}"><label>${label}</label><select data-sec="${sectionName}" data-key="${key}" data-type="string" id="${id}">${meta.options.map(o=>`<option value="${o}" ${String(val)===String(o)?'selected':''}>${o}</option>`).join('')}</select><div class="helper">${helperText}</div></div>`;
+  if(meta.type==='int'||meta.type==='float') return `<div class="${wrapperClass}"><label>${label}</label><input data-sec="${sectionName}" data-key="${key}" data-type="${meta.type}" id="${id}" type="number" step="${meta.type==='float'?'0.01':'1'}" value="${val}"><div class="helper">${helperText}</div></div>`;
+  const long=String(val).length>80||key.includes('prompt');
+  const rows=sectionName==='prompt_settings'?14:8;
+  return `<div class="${wrapperClass}"><label>${label}</label>${long?`<textarea data-sec="${sectionName}" data-key="${key}" data-type="string" id="${id}" rows="${rows}">${esc(String(val))}</textarea>`:`<input data-sec="${sectionName}" data-key="${key}" data-type="string" id="${id}" value="${esc(String(val))}">`}<div class="helper">${helperText}</div></div>`;
+}
+function renderFieldBlock(sectionName,title,keys,values,items){
+  const fields=keys.filter(key=>items[key]).map(key=>renderField(sectionName,key,items[key],values)).join('');
+  if(!fields)return '';
+  return `<div class="config-block"><h4>${title}</h4><div class="config-grid">${fields}</div></div>`;
+}
+function renderRemainingFields(sectionName, usedKeys, values, items){
+  const rest=Object.keys(items).filter(key=>!usedKeys.includes(key));
+  return renderFieldBlock(sectionName,'其他字段',rest,values,items);
 }
 function renderSection(name,values,items){
-  return `<div class="card"><h3>${name}</h3>${Object.entries(items).map(([key,meta])=>{
-    const id='cfg_'+name+'_'+key; const val=values[key]??meta.default??'';
-    if(meta.type==='bool') return `<div><label>${key}</label><select data-sec="${name}" data-key="${key}" data-type="bool" id="${id}"><option value="true" ${val===true?'selected':''}>true</option><option value="false" ${val===false?'selected':''}>false</option></select></div>`;
-    if(meta.options) return `<div><label>${key}</label><select data-sec="${name}" data-key="${key}" data-type="string" id="${id}">${meta.options.map(o=>`<option value="${o}" ${String(val)===String(o)?'selected':''}>${o}</option>`).join('')}</select></div>`;
-    if(meta.type==='int'||meta.type==='float') return `<div><label>${key}</label><input data-sec="${name}" data-key="${key}" data-type="${meta.type}" id="${id}" type="number" step="${meta.type==='float'?'0.01':'1'}" value="${val}"></div>`;
-    const long=String(val).length>80||key.includes('prompt');
-    return `<div><label>${key}</label>${long?`<textarea data-sec="${name}" data-key="${key}" data-type="string" id="${id}" rows="4">${esc(String(val))}</textarea>`:`<input data-sec="${name}" data-key="${key}" data-type="string" id="${id}" value="${esc(String(val))}">`}</div>`;
-  }).join('')}</div>`;
+  const sectionNames={
+    prompt_settings:'Prompt 设置',
+    memory_settings:'记忆与总结',
+    slang_settings:'黑话词典',
+    injection_settings:'注入设置',
+    forgetting_settings:'遗忘衰减',
+    tool_settings:'Agent 工具',
+    debug_settings:'调试输出',
+    webui_settings:'WebUI',
+  };
+  if(name==='memory_settings'){
+    const usedKeys=[
+      'summary_model','summary_every_turns','max_buffer_turns','round_summary_fetch_limit','round_summary_existing_limit','round_summary_conversation_chars',
+      'embedding_enabled','embedding_model','embedding_threshold',
+      'pinned_limit_per_category','profile_pinned_limit','agreement_pinned_limit','slang_pinned_limit','event_pinned_limit','fact_pinned_limit','knowledge_ref_pinned_limit'
+    ];
+    return `<div class="card"><h3>${sectionNames[name]||name}</h3><div class="config-section">
+      ${renderFieldBlock(name,'总结与缓存',[
+        'summary_model','summary_every_turns','max_buffer_turns','round_summary_fetch_limit','round_summary_existing_limit','round_summary_conversation_chars'
+      ],values,items)}
+      ${renderFieldBlock(name,'Embedding 检索',[
+        'embedding_enabled','embedding_model','embedding_threshold'
+      ],values,items)}
+      ${renderFieldBlock(name,'分类置顶上限',[
+        'pinned_limit_per_category','profile_pinned_limit','agreement_pinned_limit','slang_pinned_limit','event_pinned_limit','fact_pinned_limit','knowledge_ref_pinned_limit'
+      ],values,items)}
+      ${renderRemainingFields(name, usedKeys, values, items)}
+    </div></div>`;
+  }
+  if(name==='slang_settings'){
+    const usedKeys=['enabled','auto_extract','slang_model','batch_import_default_priority','batch_import_default_pinned','dedupe_limit','import_existing_limit','import_text_chars'];
+    return `<div class="card"><h3>${sectionNames[name]||name}</h3><div class="config-section">
+      ${renderFieldBlock(name,'黑话功能',[
+        'enabled','auto_extract','slang_model'
+      ],values,items)}
+      ${renderFieldBlock(name,'批量导入默认值',[
+        'batch_import_default_priority','batch_import_default_pinned','dedupe_limit','import_existing_limit','import_text_chars'
+      ],values,items)}
+      ${renderRemainingFields(name, usedKeys, values, items)}
+    </div></div>`;
+  }
+  if(name==='injection_settings'){
+    const usedKeys=['reference_header','max_injection_chars','agreement_limit','profile_limit','slang_limit','event_limit','fact_limit','knowledge_ref_limit','slang_header'];
+    return `<div class="card"><h3>${sectionNames[name]||name}</h3><div class="config-section">
+      ${renderFieldBlock(name,'注入总规则',[
+        'reference_header','max_injection_chars'
+      ],values,items)}
+      ${renderFieldBlock(name,'分类注入条数',[
+        'agreement_limit','profile_limit','slang_limit','event_limit','fact_limit','knowledge_ref_limit','slang_header'
+      ],values,items)}
+      ${renderRemainingFields(name, usedKeys, values, items)}
+    </div></div>`;
+  }
+  if(name==='forgetting_settings'){
+    const usedKeys=[
+      'run_interval_hours','protect_pinned','organizer_model','organizer_memory_limit',
+      'profile_stale_after_days','profile_decay_mode','profile_decay_value','profile_decay_interval_hours','profile_archive_below_priority',
+      'agreement_stale_after_days','agreement_decay_mode','agreement_decay_value','agreement_decay_interval_hours','agreement_archive_below_priority',
+      'slang_stale_after_days','slang_decay_mode','slang_decay_value','slang_decay_interval_hours','slang_archive_below_priority',
+      'event_stale_after_days','event_decay_mode','event_decay_value','event_decay_interval_hours','event_archive_below_priority',
+      'fact_stale_after_days','fact_decay_mode','fact_decay_value','fact_decay_interval_hours','fact_archive_below_priority',
+      'knowledge_ref_stale_after_days','knowledge_ref_decay_mode','knowledge_ref_decay_value','knowledge_ref_decay_interval_hours','knowledge_ref_archive_below_priority'
+    ];
+    return `<div class="card"><h3>${sectionNames[name]||name}</h3><div class="config-section">
+      ${renderFieldBlock(name,'全局规则',[
+        'run_interval_hours','protect_pinned','organizer_model','organizer_memory_limit'
+      ],values,items)}
+      ${renderFieldBlock(name,'Profile',[
+        'profile_stale_after_days','profile_decay_mode','profile_decay_value','profile_decay_interval_hours','profile_archive_below_priority'
+      ],values,items)}
+      ${renderFieldBlock(name,'Agreement',[
+        'agreement_stale_after_days','agreement_decay_mode','agreement_decay_value','agreement_decay_interval_hours','agreement_archive_below_priority'
+      ],values,items)}
+      ${renderFieldBlock(name,'Slang',[
+        'slang_stale_after_days','slang_decay_mode','slang_decay_value','slang_decay_interval_hours','slang_archive_below_priority'
+      ],values,items)}
+      ${renderFieldBlock(name,'Event',[
+        'event_stale_after_days','event_decay_mode','event_decay_value','event_decay_interval_hours','event_archive_below_priority'
+      ],values,items)}
+      ${renderFieldBlock(name,'Fact',[
+        'fact_stale_after_days','fact_decay_mode','fact_decay_value','fact_decay_interval_hours','fact_archive_below_priority'
+      ],values,items)}
+      ${renderFieldBlock(name,'Knowledge Ref',[
+        'knowledge_ref_stale_after_days','knowledge_ref_decay_mode','knowledge_ref_decay_value','knowledge_ref_decay_interval_hours','knowledge_ref_archive_below_priority'
+      ],values,items)}
+      ${renderRemainingFields(name, usedKeys, values, items)}
+    </div></div>`;
+  }
+  if(name==='prompt_settings'){
+    const usedKeys=['round_summary_prompt','slang_import_prompt','forgetting_organizer_prompt'];
+    return `<div class="card"><h3>${sectionNames[name]||name}</h3><div class="config-section">
+      ${renderFieldBlock(name,'总结抽取',[
+        'round_summary_prompt'
+      ],values,items)}
+      ${renderFieldBlock(name,'黑话导入',[
+        'slang_import_prompt'
+      ],values,items)}
+      ${renderFieldBlock(name,'遗忘整理',[
+        'forgetting_organizer_prompt'
+      ],values,items)}
+      ${renderRemainingFields(name, usedKeys, values, items)}
+    </div></div>`;
+  }
+  return `<div class="card"><h3>${sectionNames[name]||name}</h3><div class="config-grid">${Object.entries(items).map(([key,meta])=>renderField(name,key,meta,values)).join('')}</div></div>`;
 }
 async function saveConfig(){
   const payload={};
@@ -246,7 +774,8 @@ async function saveConfig(){
     payload[sec][key]=v;
   });
   await request('/api/config',{method:'PUT',body:JSON.stringify(payload)});
-  alert('配置已保存');
+  await renderConfig();
+  toast('配置已保存');
 }
 
 boot();
